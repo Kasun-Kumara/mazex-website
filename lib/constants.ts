@@ -151,18 +151,6 @@ export const SPONSOR_TIERS: SponsorTier[] = [
     },
 ];
 
-export const RAS_CHANNELS = [
-    { platform: "WhatsApp", icon: "FaWhatsapp" as const },
-    { platform: "Facebook", icon: "FaFacebook" as const },
-    { platform: "LinkedIn", icon: "FaLinkedin" as const },
-];
-
-export const WIE_CHANNELS = [
-    { platform: "Official Website", icon: "FaGlobe" as const },
-    { platform: "Facebook", icon: "FaFacebook" as const },
-    { platform: "LinkedIn", icon: "FaLinkedin" as const },
-    { platform: "YouTube Channel", icon: "FaYoutube" as const },
-];
 
 export const PAST_EVENTS = [
     {

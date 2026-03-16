@@ -39,7 +39,7 @@ export default function WhatIsMicromouse() {
           >
             <p className="text-[#A9D6E5]/80 text-lg leading-relaxed mb-10">
               A Micromouse is a small, fully autonomous robot that navigates and
-              solves a maze in the shortest possible time — with no human
+              solves a maze in the shortest possible time with no human
               intervention. It uses sensors to detect walls, processes data using
               onboard microcontrollers, and applies maze-solving algorithms to
               find the optimal path.

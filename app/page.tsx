@@ -5,7 +5,6 @@ import WhatIsMicromouse from "@/components/WhatIsMicromouse";
 import Timeline from "@/components/Timeline";
 import Organizers from "@/components/Organizers";
 import Sponsorship from "@/components/Sponsorship";
-import Visibility from "@/components/Visibility";
 import PastEvents from "@/components/PastEvents";
 import RegisterCTA from "@/components/RegisterCTA";
 import Footer from "@/components/Footer";
@@ -20,7 +19,6 @@ export default function Home() {
       <Timeline />
       <Organizers />
       <Sponsorship />
-      <Visibility />
       <PastEvents />
       <RegisterCTA />
       <Footer />
