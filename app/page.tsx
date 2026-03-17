@@ -3,6 +3,7 @@ import Hero from "@/components/Hero";
 import AboutMazeX from "@/components/AboutMazeX";
 import WhatIsMicromouse from "@/components/WhatIsMicromouse";
 import Timeline from "@/components/Timeline";
+import Delegates from "@/components/Delegates";
 import Organizers from "@/components/Organizers";
 import Sponsorship from "@/components/Sponsorship";
 import PastEvents from "@/components/PastEvents";
@@ -18,6 +19,7 @@ export default function Home() {
       <AboutMazeX />
       <WhatIsMicromouse />
       <Timeline />
+      <Delegates />
       <Organizers />
       <Sponsorship />
       <PastEvents />
