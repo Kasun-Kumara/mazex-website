@@ -16,35 +16,35 @@ const SOCIAL_LINKS = [
   {
     icon: FaFacebookF,
     label: "Facebook",
-    href: "#",
+    href: "https://www.facebook.com/IEEEUOMSB",
     bg: "bg-[#1877F2]",
     hoverGlow: "hover:shadow-[0_0_20px_rgba(24,119,242,0.6)]",
   },
   {
     icon: FaLinkedinIn,
     label: "LinkedIn",
-    href: "#",
+    href: "https://www.linkedin.com/company/ieeeuomsb/",
     bg: "bg-[#0A66C2]",
     hoverGlow: "hover:shadow-[0_0_20px_rgba(10,102,194,0.6)]",
   },
   {
     icon: FaYoutube,
     label: "YouTube",
-    href: "#",
+    href: "https://www.youtube.com/@IEEEUOMSB",
     bg: "bg-[#FF0000]",
     hoverGlow: "hover:shadow-[0_0_20px_rgba(255,0,0,0.5)]",
   },
   {
     icon: FaInstagram,
     label: "Instagram",
-    href: "#",
+    href: "https://www.instagram.com/ieeesbuom",
     bg: "bg-gradient-to-br from-[#F58529] via-[#DD2A7B] to-[#8134AF]",
     hoverGlow: "hover:shadow-[0_0_20px_rgba(221,42,123,0.6)]",
   },
   {
     icon: FaWhatsapp,
     label: "WhatsApp",
-    href: "#",
+    href: "https://whatsapp.com/channel/0029VawdYwuFnSzHnM7b8J30",
     bg: "bg-[#25D366]",
     hoverGlow: "hover:shadow-[0_0_20px_rgba(37,211,102,0.5)]",
   },
@@ -74,7 +74,7 @@ export default function Footer() {
       {/* ═══════ TOP: 4-Column Footer ═══════ */}
       <div className="bg-[#030F18] border-t border-[#1B4965]/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-20">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 lg:gap-8">
             {/* Col 1: Brand */}
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -141,50 +141,24 @@ export default function Footer() {
               </h4>
               <ul className="space-y-3 text-[#A9D6E5]/70 text-sm">
                 <li className="flex items-start gap-2">
-                  <span className="text-[#2C7DA0] mt-1">▸</span>
-                  University of Moratuwa IEEE Student Branch
+                  <span className="text-[#2C7DA0] mt-1 text-base">▸</span>
+                  <a href="https://site.ieee.org/sb-moratuwa/" target="_blank" rel="noopener noreferrer" className="hover:text-[#EAF6FF] transition-colors duration-200">
+                    University of Moratuwa IEEE Student Branch
+                  </a>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#2C7DA0] mt-1">▸</span>
-                  IEEE Robotics &amp; Automation Society Chapter
+                  <span className="text-[#2C7DA0] mt-1 text-base">▸</span>
+                  <a href="https://site.ieee.org/sb-moratuwa/chapters/robotics-and-automation-society/" target="_blank" rel="noopener noreferrer" className="hover:text-[#EAF6FF] transition-colors duration-200">
+                    IEEE Robotics &amp; Automation Society Chapter
+                  </a>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#2C7DA0] mt-1">▸</span>
-                  IEEE WIE Affinity Group
+                  <span className="text-[#2C7DA0] mt-1 text-base">▸</span>
+                  <a href="https://site.ieee.org/sb-moratuwa/chapters/women-in-engineering/" target="_blank" rel="noopener noreferrer" className="hover:text-[#EAF6FF] transition-colors duration-200">
+                    IEEE WIE Affinity Group
+                  </a>
                 </li>
               </ul>
-            </motion.div>
-
-            {/* Col 4: Connect With Us */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-            >
-              <h4 className="text-[#EAF6FF] font-bold text-sm uppercase tracking-wider mb-6 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[#A9D6E5]" />
-                Connect With Us
-              </h4>
-              <p className="text-[#A9D6E5]/70 text-sm mb-5">
-                Follow our chapters for updates on workshops, events, and
-                competition announcements.
-              </p>
-              <div className="flex flex-wrap gap-3">
-                {SOCIAL_LINKS.map((social) => {
-                  const Icon = social.icon;
-                  return (
-                    <a
-                      key={social.label}
-                      href={social.href}
-                      aria-label={social.label}
-                      className={`w-10 h-10 rounded-xl ${social.bg} flex items-center justify-center text-white transition-all duration-300 ${social.hoverGlow} hover:-translate-y-1 hover:scale-110`}
-                    >
-                      <Icon size={18} />
-                    </a>
-                  );
-                })}
-              </div>
             </motion.div>
           </div>
         </div>
@@ -205,7 +179,12 @@ export default function Footer() {
               variants={itemVariants}
               className="flex flex-col sm:flex-row items-center gap-6"
             >
-              <div className="group relative">
+              <a
+                href="https://site.ieee.org/sb-moratuwa/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group relative block"
+              >
                 <div className="absolute -inset-1 bg-gradient-to-r from-[#2C7DA0]/30 to-[#61A5C2]/30 rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 <div className="relative bg-white rounded-full p-3 w-[72px] h-[72px] flex items-center justify-center shadow-lg shadow-black/20 transition-transform duration-300 group-hover:scale-105">
                   <Image
@@ -216,7 +195,7 @@ export default function Footer() {
                     className="object-contain"
                   />
                 </div>
-              </div>
+              </a>
               <div className="text-center sm:text-left">
                 <p className="text-[#EAF6FF] font-bold text-base sm:text-lg font-[family-name:var(--font-space-grotesk)] leading-tight">
                   University of Moratuwa
@@ -225,17 +204,19 @@ export default function Footer() {
                   IEEE Student Branch
                 </p>
               </div>
-              <div className="flex items-center gap-3 sm:ml-6">
+              <div className="flex items-center gap-4 sm:ml-8 flex-wrap mt-4 sm:mt-0">
                 {SOCIAL_LINKS.map((social) => {
                   const Icon = social.icon;
                   return (
                     <a
                       key={`showcase-${social.label}`}
                       href={social.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       aria-label={social.label}
-                      className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full ${social.bg} flex items-center justify-center text-white transition-all duration-300 ${social.hoverGlow} hover:-translate-y-1 hover:scale-110`}
+                      className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl ${social.bg} flex items-center justify-center text-white transition-all duration-300 ${social.hoverGlow} hover:-translate-y-1 hover:scale-110 shadow-lg`}
                     >
-                      <Icon size={20} />
+                      <Icon className="w-6 h-6 sm:w-7 sm:h-7" />
                     </a>
                   );
                 })}
@@ -251,7 +232,12 @@ export default function Footer() {
               className="flex flex-col sm:flex-row items-center justify-center gap-8 sm:gap-10 w-full max-w-3xl"
             >
               {/* IEEE RAS */}
-              <div className="group relative flex-1 w-full">
+              <a
+                href="https://site.ieee.org/sb-moratuwa/chapters/robotics-and-automation-society/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group relative flex-1 w-full block"
+              >
                 <div className="absolute -inset-2 bg-gradient-to-r from-[#2C7DA0]/20 to-[#61A5C2]/20 rounded-2xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 <div className="relative bg-white rounded-2xl px-8 py-5 shadow-lg shadow-black/20 transition-all duration-300 group-hover:scale-[1.03] group-hover:shadow-xl group-hover:shadow-[#2C7DA0]/10 flex items-center justify-center">
                   <Image
@@ -262,13 +248,18 @@ export default function Footer() {
                     className="object-contain max-h-[60px] w-full"
                   />
                 </div>
-              </div>
+              </a>
 
               {/* Vertical divider */}
               <div className="hidden sm:block w-px h-16 bg-gradient-to-b from-transparent via-[#2C7DA0]/30 to-transparent flex-shrink-0" />
 
               {/* IEEE WIE */}
-              <div className="group relative flex-1 w-full">
+              <a
+                href="https://site.ieee.org/sb-moratuwa/chapters/women-in-engineering/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group relative flex-1 w-full block"
+              >
                 <div className="absolute -inset-2 bg-gradient-to-r from-[#61A5C2]/20 to-[#A9D6E5]/20 rounded-2xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 <div className="relative bg-white rounded-2xl px-8 py-5 shadow-lg shadow-black/20 transition-all duration-300 group-hover:scale-[1.03] group-hover:shadow-xl group-hover:shadow-[#61A5C2]/10 flex items-center justify-center">
                   <Image
@@ -279,7 +270,7 @@ export default function Footer() {
                     className="object-contain max-h-[60px] w-full"
                   />
                 </div>
-              </div>
+              </a>
             </motion.div>
           </motion.div>
         </div>

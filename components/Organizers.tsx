@@ -39,9 +39,22 @@ export default function Organizers() {
                 </span>
               </div>
 
-              <h3 className="text-[#EAF6FF] font-bold text-xl mb-2">
-                {org.title}
-              </h3>
+              {org.href ? (
+                <a
+                  href={org.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-[#61A5C2] transition-colors duration-200"
+                >
+                  <h3 className="text-[#EAF6FF] font-bold text-xl mb-2 hover:text-inherit">
+                    {org.title}
+                  </h3>
+                </a>
+              ) : (
+                <h3 className="text-[#EAF6FF] font-bold text-xl mb-2">
+                  {org.title}
+                </h3>
+              )}
               <p className="text-[#61A5C2] text-sm mb-4">{org.subtitle}</p>
               <p className="text-[#A9D6E5]/70 text-sm leading-relaxed">
                 {org.description}
