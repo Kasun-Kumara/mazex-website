@@ -289,7 +289,7 @@ export default function Footer() {
             IEEE Student Branch, University of Moratuwa
           </p>
           <p className="text-[#0D2233]/60 text-xs text-center mt-1">
-            © 2026 RoboRoarz Sri Lanka – All rights reserved.
+            © 2026 MazeX 1.0 – All rights reserved.
           </p>
         </div>
       </motion.div>
