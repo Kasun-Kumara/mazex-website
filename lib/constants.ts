@@ -3,7 +3,6 @@ export const NAV_LINKS = [
     { label: "What is Micromouse", href: "#micromouse" },
     { label: "Timeline", href: "#timeline" },
     { label: "Sponsors", href: "#sponsors" },
-    { label: "Register", href: "#register" },
 ];
 
 export const HERO_STATS = [
