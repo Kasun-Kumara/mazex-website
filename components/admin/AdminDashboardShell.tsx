@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   BookOpenText,
+  Handshake,
   LogOut,
   Menu,
   PanelLeftClose,
@@ -33,6 +34,11 @@ const navigationItems = [
     href: "/admin/resources",
     label: "Resources",
     icon: BookOpenText,
+  },
+  {
+    href: "/admin/sponsors",
+    label: "Sponsors",
+    icon: Handshake,
   },
 ];
 

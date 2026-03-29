@@ -1,3 +1,4 @@
+import dynamic from "next/dynamic";
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import AboutMazeX from "@/components/AboutMazeX";
@@ -5,14 +6,18 @@ import WhatIsMicromouse from "@/components/WhatIsMicromouse";
 import WorkshopTimeline from "@/components/WorkshopTimeline";
 import Delegates from "@/components/Delegates";
 import Organizers from "@/components/Organizers";
-import Sponsorship from "@/components/Sponsorship";
 import PastEvents from "@/components/PastEvents";
 import RegisterCTA from "@/components/RegisterCTA";
 import ContactUs from "@/components/ContactUs";
 import Footer from "@/components/Footer";
 import HexBackground from "@/components/HexBackground";
+import { listSponsors } from "@/lib/sponsors";
 
-export default function Home() {
+const Sponsorship = dynamic(() => import("@/components/Sponsorship"));
+
+export default async function Home() {
+  const sponsors = await listSponsors();
+
   return (
     <>
       <Navbar />
@@ -29,7 +34,7 @@ export default function Home() {
         <WorkshopTimeline />
         <Delegates />
         <Organizers />
-        <Sponsorship />
+        <Sponsorship sponsors={sponsors} />
         <PastEvents />
         <RegisterCTA />
         <ContactUs />

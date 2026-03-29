@@ -1,21 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-
-const DUMMY_PARTNERS = [
-  {
-    type: "Title Partner",
-    name: "Knurdz",
-    website: "https://knurdz.com",
-    logo: "/knurdz-logo-horizontal-bg (1).png",
-  },
-  {
-    type: "Gold Partner",
-    name: "Microsoft",
-    website: "https://microsoft.com",
-    logo: "/Microsoft-logo.webp",
-  },
-];
+import type { PublicSponsor } from "@/lib/sponsor-types";
 
 const containerVariants = {
   hidden: {},
@@ -27,7 +13,11 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
 };
 
-export default function Sponsorship() {
+export default function Sponsorship({
+  sponsors,
+}: {
+  sponsors: PublicSponsor[];
+}) {
   return (
     <section id="sponsors" className="theme-section relative py-16 sm:py-20 lg:py-24">
       <div className="absolute left-[4%] top-[12%] h-[260px] w-[260px] rounded-full bg-[#A855F7]/8 opacity-40 blur-[110px] pointer-events-none" />
@@ -51,59 +41,97 @@ export default function Sponsorship() {
           viewport={{ once: true }}
           className="flex flex-col items-center justify-center gap-16 pt-4 md:flex-row md:items-end md:gap-28 md:pt-8"
         >
-          {DUMMY_PARTNERS.map((partner, i) => (
+          {sponsors.map((partner, i) => (
             <motion.div
-              key={i}
+              key={partner.id}
               variants={itemVariants}
               className="group flex flex-col items-center"
             >
-              <a
-                href={partner.website}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="relative flex h-16 w-48 sm:h-20 sm:w-64 overflow-hidden items-center justify-center rounded bg-white p-1 sm:p-2 shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_8px_30px_rgba(168,85,247,0.3)] hover:ring-2 hover:ring-[#A855F7]/50"
-              >
-                {/* Shine Animation */}
-                <motion.div
-                  animate={{ translateX: ["-150%", "150%"] }}
-                  transition={{
-                    duration: 1.5,
-                    repeat: Infinity,
-                    repeatDelay: 3.5,
-                    ease: "easeInOut",
-                    delay: i * 2,
-                  }}
-                  className="absolute inset-0 z-10 skew-x-[-25deg] bg-gradient-to-r from-transparent via-white/80 to-transparent"
-                />
+              {partner.websiteUrl ? (
+                <a
+                  href={partner.websiteUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="relative flex h-16 w-48 sm:h-20 sm:w-64 overflow-hidden items-center justify-center rounded bg-white p-1 sm:p-2 shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_8px_30px_rgba(168,85,247,0.3)] hover:ring-2 hover:ring-[#A855F7]/50"
+                >
+                  <motion.div
+                    animate={{ translateX: ["-150%", "150%"] }}
+                    transition={{
+                      duration: 1.5,
+                      repeat: Infinity,
+                      repeatDelay: 3.5,
+                      ease: "easeInOut",
+                      delay: i * 2,
+                    }}
+                    className="absolute inset-0 z-10 skew-x-[-25deg] bg-gradient-to-r from-transparent via-white/80 to-transparent"
+                  />
 
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={partner.logo}
-                  alt={`${partner.name} Logo`}
-                  className="z-0 h-full w-full object-contain transition-transform duration-500 group-hover:scale-110"
-                />
-              </a>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={partner.imageSrc}
+                    alt={`${partner.title} Logo`}
+                    className="z-0 h-full w-full object-contain transition-transform duration-500 group-hover:scale-110"
+                  />
+                </a>
+              ) : (
+                <div className="relative flex h-16 w-48 sm:h-20 sm:w-64 overflow-hidden items-center justify-center rounded bg-white p-1 sm:p-2 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+                  <motion.div
+                    animate={{ translateX: ["-150%", "150%"] }}
+                    transition={{
+                      duration: 1.5,
+                      repeat: Infinity,
+                      repeatDelay: 3.5,
+                      ease: "easeInOut",
+                      delay: i * 2,
+                    }}
+                    className="absolute inset-0 z-10 skew-x-[-25deg] bg-gradient-to-r from-transparent via-white/80 to-transparent"
+                  />
+
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={partner.imageSrc}
+                    alt={`${partner.title} Logo`}
+                    className="z-0 h-full w-full object-contain"
+                  />
+                </div>
+              )}
               
               <div className="mt-8 flex flex-col items-center gap-1 sm:gap-2">
                 <h4 className="text-sm font-semibold tracking-[0.25em] text-white sm:text-base">
-                  {partner.type.toUpperCase()}
+                  {partner.title.toUpperCase()}
                 </h4>
                 
-                <a
-                  href={partner.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-2 flex items-center gap-2 text-sm font-medium tracking-wide text-[#9e8db3] transition-colors duration-300 hover:text-white"
-                >
-                  Visit Website
-                  <svg className="h-4 w-4 opacity-50 transition-opacity duration-300 group-hover:opacity-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </a>
+                {partner.websiteUrl ? (
+                  <a
+                    href={partner.websiteUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 flex items-center gap-2 text-sm font-medium tracking-wide text-[#9e8db3] transition-colors duration-300 hover:text-white"
+                  >
+                    Visit Website
+                    <svg className="h-4 w-4 opacity-50 transition-opacity duration-300 group-hover:opacity-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                ) : null}
               </div>
             </motion.div>
           ))}
         </motion.div>
+
+        {sponsors.length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="mx-auto mt-12 max-w-2xl text-center"
+          >
+            <p className="text-sm uppercase tracking-[0.3em] text-[#9e8db3]">
+              Partners will be announced soon
+            </p>
+          </motion.div>
+        ) : null}
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}

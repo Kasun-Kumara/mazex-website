@@ -59,6 +59,14 @@ a {
     opacity 200ms ease;
 }
 
+button:not(:disabled) {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
 ::selection {
   background: rgba(107, 82, 143, 0.28);
   color: #f8fafc;
