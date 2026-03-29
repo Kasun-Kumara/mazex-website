@@ -193,16 +193,19 @@ export const PAST_EVENTS = [
         title: "BotTalk",
         description:
             "A panel discussion where robotics and technology experts discussed industry insights, advancements, and future opportunities with the audience.",
+        images: ["/1.jpg", "/1-1.jpg", "/1-2.jpg"],
     },
     {
         title: "Gammaddata IEEE Api",
         description:
             "A school workshop series introducing students to robotics and basic STEM concepts through interactive sessions and demonstrations.",
+        images: ["/2.jpg", "/2-1.jpg", "/2-2.jpg"],
     },
     {
         title: "Robotics Day",
         description:
             "An exhibition showcasing University of Moratuwa robotics projects, with keynote sessions from RoboticGen and Zone24 featuring live robot demonstrations.",
+        images: ["/3.jpg", "/3-1.jpg", "/3-2.jpeg"],
     },
 ];
 
