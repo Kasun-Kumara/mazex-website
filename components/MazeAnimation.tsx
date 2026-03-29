@@ -2,12 +2,9 @@
 
 import React, {
   useMemo,
-  useState,
-  useEffect,
-  useCallback,
-  useRef,
   useId,
 } from "react";
+import { motion } from "framer-motion";
 
 const MAZE_GRID: number[][] = [
   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -99,74 +96,21 @@ export default function MazeAnimation({
     [path, cellSize]
   );
 
-  const [robotPos, setRobotPos] = useState(pixelPath[0]);
-  const [trailPos, setTrailPos] = useState(pixelPath[0]);
-  const animRef = useRef<number | null>(null);
-  const startTimeRef = useRef<number | null>(null);
-
-  const segmentMs = 180;
-  const totalMs = (pixelPath.length - 1) * segmentMs;
-  const pauseMs = 1200;
-  const loopMs = totalMs + pauseMs;
-  const trailDelayMs = segmentMs * 2;
-
-  const posAtTime = useCallback(
-    (ms: number) => {
-      if (pixelPath.length < 2) return pixelPath[0];
-
-      const t = Math.min(ms, totalMs);
-      const seg = Math.min(Math.floor(t / segmentMs), pixelPath.length - 2);
-      const frac = Math.max(0, Math.min(1, (t - seg * segmentMs) / segmentMs));
-      const a = pixelPath[seg];
-      const b = pixelPath[seg + 1];
-
-      return { x: a.x + (b.x - a.x) * frac, y: a.y + (b.y - a.y) * frac };
-    },
-    [pixelPath, totalMs]
-  );
-
-  useEffect(() => {
-    const step = (ts: number) => {
-      if (startTimeRef.current === null) {
-        startTimeRef.current = ts;
-      }
-
-      const elapsed = (ts - startTimeRef.current) % loopMs;
-      setRobotPos(posAtTime(elapsed));
-      setTrailPos(posAtTime(Math.max(0, elapsed - trailDelayMs)));
-      animRef.current = requestAnimationFrame(step);
-    };
-
-    animRef.current = requestAnimationFrame(step);
-
-    return () => {
-      if (animRef.current !== null) {
-        cancelAnimationFrame(animRef.current);
-      }
-    };
-  }, [loopMs, posAtTime, trailDelayMs]);
-
   const robotRadius = cellSize * 0.15;
   const passageClipId = `${mazeId}-passage-clip`;
   const wallGlowId = `${mazeId}-wall-glow`;
   const robotGlowId = `${mazeId}-robot-glow`;
   const robotGradId = `${mazeId}-robot-grad`;
 
-  return (
-    <div className={`relative flex w-full items-center justify-center ${className}`}>
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(circle at center, rgba(129, 140, 248, 0.12) 0%, transparent 72%)",
-        }}
-      />
+  const robotPos = pixelPath[0];
 
+  return (
+    <div className={`relative flex items-center justify-center ${className}`}>
       <svg
         width={size}
         height={size}
         viewBox={`0 0 ${size} ${size}`}
-        className="relative z-10 block"
+        className="relative z-10 block h-full w-full"
       >
         <defs>
           <filter id={wallGlowId} x="-10%" y="-10%" width="120%" height="120%">
@@ -348,53 +292,55 @@ export default function MazeAnimation({
         </text>
 
         <g clipPath={`url(#${passageClipId})`}>
-          <circle
-            cx={trailPos.x}
-            cy={trailPos.y}
-            r={robotRadius * 0.55}
-            fill="#A855F7"
-            opacity="0.3"
-          />
-
-          <circle
-            cx={robotPos.x}
-            cy={robotPos.y}
+          <motion.circle
+            animate={{ 
+              cx: pixelPath.map(p => p.x), 
+              cy: pixelPath.map(p => p.y) 
+            }}
+            transition={{ 
+              duration: 6, 
+              repeat: Infinity, 
+              ease: "linear",
+              repeatDelay: 1.5
+            }}
             r={robotRadius * 2.2}
             fill="none"
             stroke="#818CF8"
             strokeWidth="0.6"
             opacity="0.2"
-          >
-            <animate
-              attributeName="opacity"
-              values="0.2;0.08;0.2"
-              dur="2s"
-              repeatCount="indefinite"
-            />
-          </circle>
+          />
 
-          <circle
-            cx={robotPos.x}
-            cy={robotPos.y}
+          <motion.circle
+            animate={{ 
+              cx: pixelPath.map(p => p.x), 
+              cy: pixelPath.map(p => p.y) 
+            }}
+            transition={{ 
+              duration: 12, 
+              repeat: Infinity, 
+              ease: "linear",
+              repeatDelay: 1.5
+            }}
             r={robotRadius * 1.8}
             fill="#C084FC"
             opacity="0.12"
           />
 
-          <circle
-            cx={robotPos.x}
-            cy={robotPos.y}
+          <motion.circle
+            animate={{ 
+              cx: pixelPath.map(p => p.x), 
+              cy: pixelPath.map(p => p.y) 
+            }}
+            transition={{ 
+              duration: 12, 
+              repeat: Infinity, 
+              ease: "linear",
+              repeatDelay: 1.5
+            }}
             r={robotRadius}
             fill={`url(#${robotGradId})`}
             filter={`url(#${robotGlowId})`}
-          >
-            <animate
-              attributeName="opacity"
-              values="1;0.8;1"
-              dur="1.5s"
-              repeatCount="indefinite"
-            />
-          </circle>
+          />
         </g>
       </svg>
     </div>

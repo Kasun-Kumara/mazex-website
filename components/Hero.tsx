@@ -98,9 +98,11 @@ export default function Hero() {
             transition={{ duration: 0.9, delay: 0.4, ease: "easeOut" }}
             className="flex items-center justify-center"
           >
-            <div className="theme-card w-full max-w-[580px] p-5 sm:p-7 lg:p-8">
-              <div className="flex items-center justify-center border border-[#1b243b] bg-[#040811]/95 p-5 sm:p-6 lg:p-8">
-                <MazeAnimation size={360} className="animate-float mx-auto" />
+            <div className="theme-card p-4 sm:p-5">
+              <div className="flex items-center justify-center border border-[#1b243b] bg-[#040811]/95 p-4 sm:p-6">
+                <div className="w-[300px] h-[300px] sm:w-[360px] sm:h-[360px] md:w-[400px] md:h-[400px] lg:w-[460px] lg:h-[460px] xl:w-[500px] xl:h-[500px]">
+                  <MazeAnimation size={500} className="w-full h-full" />
+                </div>
               </div>
             </div>
           </motion.div>

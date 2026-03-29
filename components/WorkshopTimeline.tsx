@@ -1,7 +1,7 @@
 "use client";
 
-import { motion, useScroll, useTransform } from "framer-motion";
-import { useRef } from "react";
+import { motion, useScroll, useTransform, useSpring, useMotionValue, useMotionValueEvent } from "framer-motion";
+import { useRef, useState, useEffect } from "react";
 import { WORKSHOP_EVENTS } from "@/lib/constants";
 
 const MicromouseRobot = () => (
@@ -75,11 +75,43 @@ const WorkshopPinMarker = () => (
 
 export default function WorkshopTimeline() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
   const { scrollYProgress } = useScroll({
     target: containerRef,
     offset: ["start center", "end center"],
   });
-  const pathProgress = useTransform(scrollYProgress, [0, 0.9], ["0%", "100%"]);
+
+  // Unified progress value driven by either scroll or hover
+  const targetProgress = useMotionValue(0);
+
+  // Sync with scroll progress when not hovering
+  useMotionValueEvent(scrollYProgress, "change", (latest) => {
+    if (hoveredIndex === null) {
+      targetProgress.set(latest);
+    }
+  });
+
+  // Sync with hover progress when hovering
+  useEffect(() => {
+    if (hoveredIndex !== null) {
+      // Correct targets for 4 dots: 1/8, 3/8, 5/8, 7/8 (0.125, 0.375, 0.625, 0.875)
+      const target = (hoveredIndex * 2 + 1) / (WORKSHOP_EVENTS.length * 2);
+      targetProgress.set(target);
+    } else {
+      // Immediately snap to current scroll progress when starting/ending hover mode
+      // to ensure smooth transition from current scroll position
+      targetProgress.set(scrollYProgress.get());
+    }
+  }, [hoveredIndex, targetProgress, scrollYProgress]);
+
+  const smoothProgress = useSpring(targetProgress, {
+    stiffness: 100,
+    damping: 30,
+    restDelta: 0.001,
+  });
+
+  const displayProgress = useTransform(smoothProgress, [0, 1], ["0%", "100%"]);
 
   return (
     <section
@@ -113,17 +145,12 @@ export default function WorkshopTimeline() {
             <div className="absolute top-[10px] left-0 right-0 h-[2px] border-t-2 border-dashed border-[#6B528F] opacity-20" />
             <motion.div
               className="absolute top-[10px] left-0 h-[2.5px] w-full bg-gradient-to-r from-[#6B528F] via-[#D8DEE9] to-[#7A6A96]"
-              style={{ scaleX: pathProgress, transformOrigin: "left" }}
+              style={{ scaleX: smoothProgress, transformOrigin: "left" }}
             />
           </div>
 
           <motion.div
-            animate={{ left: ["-10%", "110%"] }}
-            transition={{
-              duration: 10,
-              repeat: Infinity,
-              ease: "linear",
-            }}
+            style={{ left: displayProgress }}
             className="absolute top-1/2 z-40 -translate-x-1/2 -translate-y-1/2 pointer-events-none drop-shadow-[0_0_12px_rgba(107,82,143,0.4)]"
           >
             <MicromouseRobot />
@@ -164,6 +191,12 @@ export default function WorkshopTimeline() {
                     className={`absolute z-20 w-[100%] min-w-[280px] max-w-[340px] ${
                       isTop ? "bottom-[calc(50%+65px)]" : "top-[calc(50%+65px)]"
                     }`}
+                    onMouseEnter={() => {
+                      setHoveredIndex(index);
+                    }}
+                    onMouseLeave={() => {
+                      setHoveredIndex(null);
+                    }}
                   >
                     <WorkshopCardContent event={event} />
                   </motion.div>
@@ -179,17 +212,12 @@ export default function WorkshopTimeline() {
 
             <motion.div
               className="absolute top-0 left-[10.5px] h-full w-[3px] bg-gradient-to-b from-[#6B528F] via-[#D8DEE9] to-[#7A6A96]"
-              style={{ scaleY: pathProgress, transformOrigin: "top" }}
+              style={{ scaleY: smoothProgress, transformOrigin: "top" }}
               initial={{ scaleY: 0 }}
             />
 
             <motion.div
-              animate={{ top: ["-10%", "110%"] }}
-              transition={{
-                duration: 12,
-                repeat: Infinity,
-                ease: "linear",
-              }}
+              style={{ top: displayProgress }}
               className="absolute left-[12px] z-40 -translate-x-1/2 pointer-events-none drop-shadow-[0_0_12px_rgba(107,82,143,0.4)]"
             >
               <div className="rotate-90">
@@ -225,6 +253,12 @@ export default function WorkshopTimeline() {
                   viewport={{ once: true }}
                   transition={{ duration: 0.5, delay: index * 0.1 + 0.3 }}
                   className="relative w-full"
+                  onMouseEnter={() => {
+                    setHoveredIndex(index);
+                  }}
+                  onMouseLeave={() => {
+                    setHoveredIndex(null);
+                  }}
                 >
                   <WorkshopCardContent event={event} />
                 </motion.div>
