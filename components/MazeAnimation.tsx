@@ -102,8 +102,6 @@ export default function MazeAnimation({
   const robotGlowId = `${mazeId}-robot-glow`;
   const robotGradId = `${mazeId}-robot-grad`;
 
-  const robotPos = pixelPath[0];
-
   return (
     <div className={`relative flex items-center justify-center ${className}`}>
       <svg

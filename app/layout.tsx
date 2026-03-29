@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Inter } from "next/font/google";
 import HashScrollManager from "@/components/HashScrollManager";
-import WhatsAppButton from "@/components/WhatsAppButton";
-import VerticalBrandText from "@/components/VerticalBrandText";
+import AppRouteDecorations from "@/components/AppRouteDecorations";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -37,8 +36,7 @@ export default function RootLayout({
       >
         <HashScrollManager />
         {children}
-        <VerticalBrandText />
-        <WhatsAppButton />
+        <AppRouteDecorations />
       </body>
     </html>
   );

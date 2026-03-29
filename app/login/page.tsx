@@ -1,13 +1,17 @@
-"use client";
-
-import { useState } from "react";
-import { Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
+import { redirect } from "next/navigation";
 import Footer from "@/components/Footer";
 import HexBackground from "@/components/HexBackground";
 import Navbar from "@/components/Navbar";
+import AdminLoginForm from "@/components/admin/AdminLoginForm";
+import { getCurrentAdmin } from "@/lib/admin-auth";
+import { isAppwriteConfigured } from "@/lib/appwrite";
 
-export default function LoginPage() {
-  const [showPassword, setShowPassword] = useState(false);
+export default async function LoginPage() {
+  const currentAdmin = await getCurrentAdmin();
+
+  if (currentAdmin) {
+    redirect("/admin");
+  }
 
   return (
     <>
@@ -34,72 +38,13 @@ export default function LoginPage() {
                     Welcome back
                   </h2>
                   <p className="theme-copy text-sm">
-                    Enter your credentials to continue into the MazeX dashboard.
+                    Sign in to continue to the MazeX admin dashboard.
                   </p>
                 </div>
 
-                <form className="mt-8 space-y-6">
-                  <div className="space-y-3">
-                    <label
-                      htmlFor="email"
-                      className="block text-sm font-medium text-[#E2E8F0]"
-                    >
-                      Email address
-                    </label>
-                    <div className="flex h-[52px] items-center gap-3 rounded-xl border border-[#2a223a] bg-[#060813] px-4 shadow-[inset_0_1px_0_rgba(248,250,252,0.02)] transition focus-within:border-[#8a73a6] focus-within:shadow-[0_0_0_3px_rgba(107,82,143,0.18)]">
-                      <Mail className="h-5 w-5 shrink-0 text-[#8a73a6]" />
-                      <input
-                        id="email"
-                        name="email"
-                        type="email"
-                        autoComplete="email"
-                        placeholder="user@knurdz.org"
-                        className="h-full w-full border-0 bg-transparent text-sm text-[#F8FAFC] outline-none placeholder:text-[#64748B]"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <label
-                      htmlFor="password"
-                      className="block text-sm font-medium text-[#E2E8F0]"
-                    >
-                      Password
-                    </label>
-                    <div className="flex h-[52px] items-center gap-3 rounded-xl border border-[#2a223a] bg-[#060813] px-4 shadow-[inset_0_1px_0_rgba(248,250,252,0.02)] transition focus-within:border-[#8a73a6] focus-within:shadow-[0_0_0_3px_rgba(107,82,143,0.18)]">
-                      <LockKeyhole className="h-5 w-5 shrink-0 text-[#8a73a6]" />
-                      <input
-                        id="password"
-                        name="password"
-                        type={showPassword ? "text" : "password"}
-                        autoComplete="current-password"
-                        placeholder="Enter your password"
-                        className="h-full w-full border-0 bg-transparent text-sm text-[#F8FAFC] outline-none placeholder:text-[#64748B]"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword((current) => !current)}
-                        aria-label={showPassword ? "Hide password" : "Show password"}
-                        className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-[#8a73a6] transition hover:bg-white/5 hover:text-white"
-                      >
-                        {showPassword ? (
-                          <EyeOff className="h-4.5 w-4.5" />
-                        ) : (
-                          <Eye className="h-4.5 w-4.5" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="theme-button theme-button-register w-full cursor-pointer rounded-full px-6 py-3.5 text-sm font-semibold"
-                  >
-                    Sign In
-                  </button>
-                </form>
-                </div>
+                <AdminLoginForm authConfigured={isAppwriteConfigured()} />
               </div>
+            </div>
           </div>
         </section>
         <Footer />

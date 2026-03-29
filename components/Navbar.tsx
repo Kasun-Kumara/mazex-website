@@ -12,6 +12,16 @@ const adminIconPath =
 
 type NavTheme = "violet" | "blue";
 
+const HOME_PATH = "/";
+
+function getHomeSectionHref(hash: string) {
+  if (!hash || hash === "#") {
+    return HOME_PATH;
+  }
+
+  return `${HOME_PATH}${hash}`;
+}
+
 const NAV_THEMES: Record<
   NavTheme,
   {
@@ -125,39 +135,42 @@ export default function Navbar() {
         >
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="flex h-[80px] items-center justify-between">
-              <a href="#" className="flex items-center hover:opacity-90 transition-opacity">
+              <Link
+                href={HOME_PATH}
+                className="flex items-center transition-opacity hover:opacity-90"
+              >
                 <Image
                   src="/images/brand/logo-white.svg"
                   alt="MazeX Logo"
-                  width={132}
-                  height={74}
-                  className="h-12 w-auto object-contain sm:h-14"
+                  width={156}
+                  height={88}
+                  className="h-[56px] w-auto object-contain sm:h-[64px]"
                   priority
                 />
-              </a>
+              </Link>
 
               <div className="hidden items-center gap-4 md:flex">
                 <div
                   className={`flex items-center gap-2 rounded-full border px-3 py-2 transition-[background-color,border-color] duration-500 ${theme.linkGroup}`}
                 >
                   {NAV_LINKS.map((link) => (
-                    <a
+                    <Link
                       key={link.href}
-                      href={link.href}
+                      href={getHomeSectionHref(link.href)}
                       className={`rounded-full px-4 py-2 text-sm font-medium transition-[background-color,color,box-shadow] duration-300 ${
                         activeHref === link.href ? theme.linkActive : theme.linkIdle
                       }`}
                     >
                       {link.label}
-                    </a>
+                    </Link>
                   ))}
                 </div>
-                <a
-                  href="#register"
-                  className="theme-button theme-button-register rounded-full px-7 py-4 text-sm font-medium"
+                <Link
+                  href={getHomeSectionHref("#register")}
+                  className="theme-button theme-button-register rounded-full px-6 py-2.5 text-sm font-medium"
                 >
                   Register Now
-                </a>
+                </Link>
                 <Link
                   href="/login"
                   aria-label="Admin login"
@@ -197,9 +210,9 @@ export default function Navbar() {
             >
               <div className="mx-auto max-w-7xl space-y-3 px-4 py-6 sm:px-6">
                 {NAV_LINKS.map((link) => (
-                  <a
+                  <Link
                     key={link.href}
-                    href={link.href}
+                    href={getHomeSectionHref(link.href)}
                     onClick={() => setIsOpen(false)}
                     className={`block rounded-2xl border px-4 py-3 text-base font-medium transition-[background-color,border-color,color,box-shadow] duration-300 ${
                       activeHref === link.href
@@ -208,15 +221,15 @@ export default function Navbar() {
                     }`}
                   >
                     {link.label}
-                  </a>
+                  </Link>
                 ))}
-                <a
-                  href="#register"
+                <Link
+                  href={getHomeSectionHref("#register")}
                   onClick={() => setIsOpen(false)}
-                  className="theme-button theme-button-register mt-4 block rounded-full px-4 py-3 text-center font-medium"
+                  className="theme-button theme-button-register mt-4 block rounded-full px-3.5 py-2 text-center font-medium"
                 >
                   Register Now
-                </a>
+                </Link>
                 <Link
                   href="/login"
                   onClick={() => setIsOpen(false)}

@@ -114,7 +114,7 @@ export default function HashScrollManager() {
         return;
       }
 
-      const anchor = clickTarget.closest<HTMLAnchorElement>('a[href^="#"]');
+      const anchor = clickTarget.closest<HTMLAnchorElement>("a[href]");
 
       if (!anchor) {
         return;
@@ -126,20 +126,40 @@ export default function HashScrollManager() {
         return;
       }
 
+      let nextHash = "#";
+      let isSameDocumentHashLink = href === "#";
+
+      if (!isSameDocumentHashLink) {
+        const currentUrl = new URL(window.location.href);
+        const anchorUrl = new URL(anchor.href, currentUrl);
+
+        isSameDocumentHashLink =
+          Boolean(anchorUrl.hash) &&
+          anchorUrl.origin === currentUrl.origin &&
+          anchorUrl.pathname === currentUrl.pathname &&
+          anchorUrl.search === currentUrl.search;
+
+        if (!isSameDocumentHashLink) {
+          return;
+        }
+
+        nextHash = anchorUrl.hash;
+      }
+
       event.preventDefault();
 
       const nextUrl =
-        href === "#"
+        nextHash === "#"
           ? `${window.location.pathname}${window.location.search}`
-          : `${window.location.pathname}${window.location.search}${href}`;
+          : `${window.location.pathname}${window.location.search}${nextHash}`;
 
-      if (window.location.hash === href || href === "#") {
+      if (window.location.hash === nextHash || nextHash === "#") {
         window.history.replaceState(null, "", nextUrl);
       } else {
         window.history.pushState(null, "", nextUrl);
       }
 
-      scheduleScroll(href, "smooth");
+      scheduleScroll(nextHash, "smooth");
     };
 
     const handleHashChange = () => {

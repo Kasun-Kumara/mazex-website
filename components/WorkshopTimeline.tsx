@@ -80,12 +80,9 @@ export default function WorkshopTimeline() {
 
   // Calculate progress based on actual dates
   const dateProgress = useMemo(() => {
-    // Need to check for window to avoid SSR mismatch, though "use client" covers it
     const now = new Date();
-    
-    // @ts-ignore - fullDate was added to the constants
-    const passedCount = WORKSHOP_EVENTS.filter(event => {
-      // @ts-ignore 
+
+    const passedCount = WORKSHOP_EVENTS.filter((event) => {
       const eventDate = new Date(event.fullDate);
       return now >= eventDate;
     }).length;
