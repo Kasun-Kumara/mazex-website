@@ -99,10 +99,17 @@ export default function Hero() {
             className="flex items-center justify-center"
           >
             <div className="theme-card p-4 sm:p-5">
-              <div className="flex items-center justify-center border border-[#1b243b] bg-[#040811]/95 p-4 sm:p-6">
+              <div className="border border-[#1b243b] bg-[#040811]/95 p-4 sm:p-6">
                 <div className="w-[300px] h-[300px] sm:w-[360px] sm:h-[360px] md:w-[400px] md:h-[400px] lg:w-[460px] lg:h-[460px] xl:w-[500px] xl:h-[500px]">
-                  <MazeAnimation size={500} className="w-full h-full" />
+                  <MazeAnimation
+                    size={500}
+                    className="w-full h-full"
+                    interactive
+                  />
                 </div>
+                <p className="mt-4 text-center text-xs uppercase tracking-[0.22em] text-[#7f6e96] sm:text-sm">
+                  Click any maze cell to add or remove a wall.
+                </p>
               </div>
             </div>
           </motion.div>
