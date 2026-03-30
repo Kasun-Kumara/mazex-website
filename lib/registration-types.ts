@@ -108,7 +108,7 @@ export type RegistrationOverviewItem = {
 export type RegistrationOverview = {
   forms: RegistrationOverviewItem[];
   totalSubmissions: number;
-  recentSubmissions: SubmissionSummary[];
+  recentSubmissions: SubmissionDetail[];
 };
 
 export type SubmissionFilters = {
@@ -116,14 +116,16 @@ export type SubmissionFilters = {
   from?: string | null;
   to?: string | null;
   page?: number;
-  pageSize?: number;
+  pageSize?: number | "all";
+  searchField?: string | null;
+  searchQuery?: string | null;
 };
 
 export type SubmissionPage = {
-  submissions: SubmissionSummary[];
+  submissions: SubmissionDetail[];
   total: number;
   page: number;
-  pageSize: number;
+  pageSize: number | "all";
 };
 
 export const MAX_REGISTRATION_FORMS = 5;

@@ -70,30 +70,46 @@ export default async function AdminRegistrationsPage({
   const to = readQuery(params.to) ?? "";
   const page = Number(readQuery(params.page) ?? "1");
   const submissionId = readQuery(params.submission) ?? "";
+  const pageSizeParam = readQuery(params.pageSize);
+  const pageSize = pageSizeParam === "all" ? "all" : Number(pageSizeParam ?? "15");
+  const searchField = readQuery(params.searchField) ?? "";
+  const searchQuery = readQuery(params.searchQuery) ?? "";
 
-  const [submissionPage, selectedSubmission] = await Promise.all([
+  const [submissionPage] = await Promise.all([
     listRegistrationSubmissions({
       formId: selectedForm.id,
       from,
       to,
       page: Number.isInteger(page) && page > 0 ? page : 1,
-      pageSize: 15,
-    }),
-    submissionId ? getRegistrationSubmissionById(submissionId) : Promise.resolve(null),
+      pageSize: pageSize === "all" ? "all" : (Number.isInteger(pageSize) && pageSize > 0 ? pageSize : 15),
+      searchField,
+      searchQuery,
+    })
   ]);
+
+  let selectedSubmission = submissionId
+    ? submissionPage.submissions.find(s => s.id === submissionId) || null
+    : null;
+
+  if (submissionId && !selectedSubmission) {
+    selectedSubmission = await getRegistrationSubmissionById(submissionId);
+  }
 
   return (
     <AdminDashboardShell>
       <AdminRegistrationSubmissionsPanel
-        forms={forms}
-        form={selectedForm}
-        submissionPage={submissionPage}
-        selectedSubmission={
-          selectedSubmission?.formId === selectedForm.id ? selectedSubmission : null
-        }
-        from={from}
-        to={to}
-      />
+         forms={forms}
+         form={selectedForm}
+         submissionPage={submissionPage}
+         selectedSubmission={
+           selectedSubmission?.formId === selectedForm.id ? selectedSubmission : null
+         }
+         from={from}
+         to={to}
+         pageSize={pageSize}
+         searchField={searchField}
+         searchQuery={searchQuery}
+       />
     </AdminDashboardShell>
   );
 }
