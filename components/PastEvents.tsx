@@ -90,39 +90,24 @@ export default function PastEvents() {
 
 
   return (
-    <section className="theme-section relative py-24 sm:py-32 overflow-hidden">
+    <section id="past-events" className="theme-section relative py-24 sm:py-32 overflow-hidden">
       <div className="absolute left-[4%] top-[12%] h-[300px] w-[300px] rounded-full bg-[#A855F7]/10 opacity-30 blur-[120px] pointer-events-none" />
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Heading */}
-        <motion.div
+        <motion.h2
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="mb-6 text-center"
+          className="text-4xl font-bold uppercase leading-[1.05] tracking-tight sm:text-5xl lg:text-7xl mb-16 text-center"
         >
-          <h2 className="text-3xl font-bold text-[#F8FAFC] sm:text-4xl lg:text-5xl">
-            Our previous events
-          </h2>
-        </motion.div>
+          <span className="block text-[#F8FAFC]">Previous</span>
+          <span className="block bg-gradient-to-r from-[#8a73a6] via-[#6b528f] to-[#5a4b73] bg-clip-text text-transparent">Events</span>
+        </motion.h2>
 
         {/* Dynamic Event Title & Description Section */}
         <div className="relative mb-14 text-center px-4 min-h-[120px] flex flex-col items-center">
-          {/* Ghost Title Background */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none overflow-hidden w-full h-full flex items-center justify-center -z-10">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeSlide}
-                initial={{ opacity: 0, scale: 0.8, filter: "blur(10px)" }}
-                animate={{ opacity: 0.045, scale: 1, filter: "blur(0px)" }}
-                exit={{ opacity: 0, scale: 1.1, filter: "blur(10px)" }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
-                className="text-[12vw] font-black uppercase tracking-widest text-[#8a73a6] whitespace-nowrap"
-              >
-                {PAST_EVENTS[activeSlide].title}
-              </motion.div>
-            </AnimatePresence>
-          </div>
+
 
           <AnimatePresence mode="wait">
             <motion.div
@@ -171,7 +156,7 @@ export default function PastEvents() {
           style={{ perspective: "1200px" }}
         >
           {/* Carousel Container */}
-          <div className="relative mx-auto h-[150px] sm:h-[220px] md:h-[280px] lg:h-[320px] max-w-2xl">
+          <div className="relative mx-auto h-[200px] sm:h-[300px] md:h-[380px] lg:h-[450px] max-w-3xl">
             {PAST_EVENTS.map((event, i) => {
               const style = getSlideStyle(i);
               const isActive = i === activeSlide;
@@ -327,7 +312,7 @@ export default function PastEvents() {
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.3 }}
-                    className="relative aspect-video w-full max-w-5xl max-h-[45vh] sm:max-h-[60vh] overflow-hidden rounded-xl shadow-2xl shadow-black/80 border border-white/10"
+                    className="relative aspect-[3/2] w-full max-w-5xl max-h-[55vh] sm:max-h-[70vh] overflow-hidden rounded-xl shadow-2xl shadow-black/80 border border-white/10"
                   >
                     <img
                       src={selectedEvent.images[activeImageIndex]}
