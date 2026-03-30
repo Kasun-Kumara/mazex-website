@@ -1,0 +1,78 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { createPortal } from "react-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { Loader2 } from "lucide-react";
+
+// Global emitter to let Server Components with Client children trigger this
+let dispatchOptimisticOpen: ((id: string | null) => void) | null = null;
+export const openOptimisticDrawer = (id: string | null) => {
+  if (dispatchOptimisticOpen) dispatchOptimisticOpen(id);
+};
+
+export function OptimisticSubmissionDrawer() {
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const searchParams = useSearchParams();
+  
+  // Notice when the URL actually reflects the loading ID, we clear the loading drawer
+  // because the REAL drawer is now mounting.
+  const currentId = searchParams.get("submission");
+
+  useEffect(() => {
+    setMounted(true);
+    dispatchOptimisticOpen = setLoadingId;
+    return () => { dispatchOptimisticOpen = null; };
+  }, []);
+
+  useEffect(() => {
+    if (currentId === loadingId) {
+      // The Next.js route transition has completed! Hide optimistic UI.
+      setLoadingId(null);
+    }
+  }, [currentId, loadingId]);
+
+  if (!mounted) return null;
+  const portalRoot = document.getElementById("admin-drawer-portal");
+  if (!portalRoot) return null;
+
+  const isOpen = loadingId !== null;
+
+  return createPortal(
+    <AnimatePresence>
+      {isOpen && (
+        <div key="optimistic-drawer-wrap" className="absolute inset-0 z-[55] pointer-events-none">
+          {/* Backdrop */}
+          <motion.div
+            key="optimistic-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="absolute inset-0 z-40 bg-zinc-900/40 backdrop-blur-sm dark:bg-zinc-900/60 pointer-events-auto"
+            onClick={() => setLoadingId(null)}
+            aria-label="Cancel loading"
+          />
+
+          {/* Skeleton Drawer Container */}
+          <motion.div
+            key="optimistic-drawer"
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="absolute bottom-0 w-full z-[60] bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 rounded-t-2xl shadow-[0_-20px_40px_-20px_rgba(0,0,0,0.1)] flex flex-col h-[60vh] overflow-hidden items-center justify-center pointer-events-auto"
+          >
+             <Loader2 className="h-8 w-8 animate-spin text-zinc-400 dark:text-zinc-600 mb-4" />
+             <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 animate-pulse">
+               Loading submission details...
+             </p>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>,
+    portalRoot
+  );
+}

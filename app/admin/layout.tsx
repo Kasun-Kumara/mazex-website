@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentAdmin } from "@/lib/admin-auth";
 import { isAppwriteConfigured } from "@/lib/appwrite";
+import { ThemeProvider } from "@/components/admin/ThemeProvider";
 
 export default async function AdminLayout({
   children,
@@ -17,5 +18,14 @@ export default async function AdminLayout({
     redirect("/login?reason=unauthorized");
   }
 
-  return children;
+  return (
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+    >
+      {children}
+    </ThemeProvider>
+  );
 }

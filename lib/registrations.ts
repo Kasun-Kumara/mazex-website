@@ -13,7 +13,6 @@ import type {
   FieldOption,
   FieldScope,
   FieldType,
-  FieldValidation,
   FormAvailability,
   FormCard,
   FormDefinition,
@@ -61,17 +60,11 @@ type FieldDoc = Models.Document & {
   type?: string;
   required?: boolean;
   sortOrder?: number;
-  placeholder?: string | null;
-  helpText?: string | null;
   optionsJson?: string | null;
-  validationJson?: string | null;
 };
 
 type SubmissionDoc = Models.Document & {
   formId?: string;
-  primaryName?: string;
-  primaryEmail?: string;
-  primaryPhone?: string | null;
   teamName?: string | null;
   answersJson?: string;
   memberAnswersJson?: string | null;
@@ -196,19 +189,6 @@ function normalizeFieldOptions(raw: unknown): FieldOption[] {
     .filter((x): x is FieldOption => x !== null);
 }
 
-function normalizeFieldValidation(raw: unknown): FieldValidation {
-  if (!raw || typeof raw !== "object") return {};
-  const v = raw as Record<string, unknown>;
-  const result: FieldValidation = {};
-  if (typeof v.minLength === "number" && Number.isFinite(v.minLength))
-    result.minLength = v.minLength;
-  if (typeof v.maxLength === "number" && Number.isFinite(v.maxLength))
-    result.maxLength = v.maxLength;
-  if (typeof v.min === "number" && Number.isFinite(v.min)) result.min = v.min;
-  if (typeof v.max === "number" && Number.isFinite(v.max)) result.max = v.max;
-  return result;
-}
-
 // ─── Document mappers ─────────────────────────────────────────────────────────
 
 function mapFormDoc(doc: FormDoc): FormDefinition | null {
@@ -261,34 +241,57 @@ function mapFieldDoc(doc: FieldDoc): FieldDefinition | null {
       typeof doc.sortOrder === "number" && Number.isFinite(doc.sortOrder)
         ? doc.sortOrder
         : 0,
-    placeholder: trimNullable(doc.placeholder),
-    helpText: trimNullable(doc.helpText),
     options: normalizeFieldOptions(parseJson(doc.optionsJson, [])),
-    validation: normalizeFieldValidation(parseJson(doc.validationJson, {})),
   };
 }
 
 function mapSubmissionDoc(
   doc: SubmissionDoc,
-  formsById: Map<string, FormDefinition>,
+  formsById: Map<string, FormDefinition | FormWithFields>,
 ): SubmissionDetail | null {
   const formId = trim(doc.formId);
-  const primaryName = trim(doc.primaryName);
-  const primaryEmail = trim(doc.primaryEmail);
-  if (!formId || !primaryName || !primaryEmail) return null;
+  if (!formId) return null;
 
   const form = formsById.get(formId);
+  const answers = parseJson<Record<string, SubmissionAnswerValue>>(doc.answersJson, {});
+  
+  let displayTitle = "Submission";
+  let displaySubtitle: string | null = null;
+  
+  if (form && "fields" in form) {
+    const textFields = (form as any).fields.filter((f: any) => f.scope === "submission" && (f.type === "text" || f.type === "textarea" || f.type === "email" || f.type === "tel"));
+    const nameField = textFields.find((f: any) => f.label.toLowerCase().includes("name")) || textFields[0];
+    const emailField = textFields.find((f: any) => f.type === "email") || textFields.find((f: any) => f !== nameField);
+    
+    if (nameField && answers[nameField.key]) {
+      displayTitle = String(answers[nameField.key]).trim();
+    }
+    if (emailField && answers[emailField.key]) {
+      displaySubtitle = String(answers[emailField.key]).trim() || null;
+    }
+  }
+
+  // Fallback if no specific fields matched, but we have answers
+  if (displayTitle === "Submission" && Object.keys(answers).length > 0) {
+    const values = Object.values(answers).filter(v => typeof v === 'string' && v.trim() !== '');
+    if (values.length > 0) {
+      displayTitle = String(values[0]).trim();
+    }
+    if (values.length > 1 && !displaySubtitle) {
+      displaySubtitle = String(values[1]).trim();
+    }
+  }
+
   return {
     id: doc.$id,
     formId,
     formSlug: form?.slug ?? null,
     formTitle: form?.title ?? null,
     createdAt: doc.$createdAt,
-    primaryName,
-    primaryEmail,
-    primaryPhone: trimNullable(doc.primaryPhone),
+    displayTitle,
+    displaySubtitle,
     teamName: trimNullable(doc.teamName),
-    answers: parseJson<Record<string, SubmissionAnswerValue>>(doc.answersJson, {}),
+    answers,
     memberAnswers: parseJson<Record<string, SubmissionAnswerValue>[]>(
       doc.memberAnswersJson,
       [],
@@ -300,6 +303,14 @@ function mapSubmissionDoc(
 
 function sortForms(forms: FormDefinition[]) {
   return [...forms].sort((a, b) => {
+    const aLower = a.title.toLowerCase();
+    const bLower = b.title.toLowerCase();
+    const aIsComp = aLower.includes("registration") && aLower.includes("competition");
+    const bIsComp = bLower.includes("registration") && bLower.includes("competition");
+
+    if (aIsComp && !bIsComp) return -1;
+    if (!aIsComp && bIsComp) return 1;
+
     if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
     return a.title.localeCompare(b.title);
   });
@@ -643,10 +654,7 @@ export async function createRegistrationField(params: {
   type: FieldType;
   required: boolean;
   sortOrder: number;
-  placeholder: string | null;
-  helpText: string | null;
   options: FieldOption[];
-  validation: FieldValidation;
 }) {
   const { databaseId, fieldsCollectionId } = getRegistrationsConfig();
   return createDatabasesService().createDocument<FieldDoc>(
@@ -661,10 +669,7 @@ export async function createRegistrationField(params: {
       type: params.type,
       required: params.required,
       sortOrder: params.sortOrder,
-      placeholder: params.placeholder,
-      helpText: params.helpText,
       optionsJson: JSON.stringify(params.options),
-      validationJson: JSON.stringify(params.validation),
     },
   );
 }
@@ -678,10 +683,7 @@ export async function updateRegistrationField(params: {
   type: FieldType;
   required: boolean;
   sortOrder: number;
-  placeholder: string | null;
-  helpText: string | null;
   options: FieldOption[];
-  validation: FieldValidation;
 }) {
   const { databaseId, fieldsCollectionId } = getRegistrationsConfig();
   return createDatabasesService().updateDocument<FieldDoc>(
@@ -696,10 +698,7 @@ export async function updateRegistrationField(params: {
       type: params.type,
       required: params.required,
       sortOrder: params.sortOrder,
-      placeholder: params.placeholder,
-      helpText: params.helpText,
       optionsJson: JSON.stringify(params.options),
-      validationJson: JSON.stringify(params.validation),
     },
   );
 }
@@ -730,10 +729,7 @@ export async function bulkSaveRegistrationFields(params: {
     type: FieldType;
     required: boolean;
     sortOrder: number;
-    placeholder: string | null;
-    helpText: string | null;
     options: FieldOption[];
-    validation: FieldValidation;
   }[];
   updates: {
     fieldId: string;
@@ -743,10 +739,7 @@ export async function bulkSaveRegistrationFields(params: {
     type: FieldType;
     required: boolean;
     sortOrder: number;
-    placeholder: string | null;
-    helpText: string | null;
     options: FieldOption[];
-    validation: FieldValidation;
   }[];
   deletes: string[];
 }) {
@@ -762,10 +755,7 @@ export async function bulkSaveRegistrationFields(params: {
       type: c.type,
       required: c.required,
       sortOrder: c.sortOrder,
-      placeholder: c.placeholder,
-      helpText: c.helpText,
       optionsJson: JSON.stringify(c.options),
-      validationJson: JSON.stringify(c.validation),
     })
   );
 
@@ -778,10 +768,7 @@ export async function bulkSaveRegistrationFields(params: {
       type: u.type,
       required: u.required,
       sortOrder: u.sortOrder,
-      placeholder: u.placeholder,
-      helpText: u.helpText,
       optionsJson: JSON.stringify(u.options),
-      validationJson: JSON.stringify(u.validation),
     })
   );
 
@@ -796,9 +783,6 @@ export async function bulkSaveRegistrationFields(params: {
 
 function buildSearchText(payload: SubmissionPayload) {
   const parts: string[] = [
-    payload.primaryName,
-    payload.primaryEmail,
-    payload.primaryPhone ?? "",
     payload.teamName ?? "",
   ];
   const values = [
@@ -819,9 +803,6 @@ export async function createRegistrationSubmission(payload: SubmissionPayload) {
     ID.unique(),
     {
       formId: payload.formId,
-      primaryName: payload.primaryName,
-      primaryEmail: payload.primaryEmail,
-      primaryPhone: payload.primaryPhone,
       teamName: payload.teamName,
       answersJson: JSON.stringify(payload.answers),
       memberAnswersJson: JSON.stringify(payload.memberAnswers),
@@ -845,8 +826,22 @@ function normalizeDateFilter(value: string | null | undefined, endOfDay = false)
 }
 
 async function getFormsByIdMap() {
-  const forms = await listRegistrationForms();
-  return new Map(forms.map((f) => [f.id, f] as const));
+  const { databaseId, formsCollectionId, fieldsCollectionId } = getRegistrationsConfig();
+  const db = createDatabasesService();
+  
+  const [formsResult, fieldsResult] = await Promise.all([
+    db.listDocuments<FormDoc>(databaseId, formsCollectionId, [Query.limit(100)]),
+    db.listDocuments<FieldDoc>(databaseId, fieldsCollectionId, [Query.limit(500)])
+  ]);
+  
+  const forms = sortForms(formsResult.documents.map(mapFormDoc).filter((f): f is FormDefinition => f !== null));
+  const fields = sortFields(fieldsResult.documents.map(mapFieldDoc).filter((f): f is FieldDefinition => f !== null));
+  
+  const map = new Map<string, FormWithFields>();
+  for (const form of forms) {
+    map.set(form.id, { ...form, fields: fields.filter(f => f.formId === form.id) });
+  }
+  return map;
 }
 
 export async function listRegistrationSubmissions(
@@ -896,9 +891,8 @@ export async function listRegistrationSubmissions(
         formSlug: s.formSlug,
         formTitle: s.formTitle,
         createdAt: s.createdAt,
-        primaryName: s.primaryName,
-        primaryEmail: s.primaryEmail,
-        primaryPhone: s.primaryPhone,
+        displayTitle: s.displayTitle,
+        displaySubtitle: s.displaySubtitle,
         teamName: s.teamName,
       }));
 
@@ -1101,8 +1095,22 @@ export function validateFieldValue(
   if (field.type === "file") {
     if (field.required && !(value instanceof File))
       return `${field.label} is required. Please upload a file.`;
-    if (value instanceof File && value.size > 5 * 1024 * 1024)
-      return `${field.label} must be less than 5MB.`;
+    if (value instanceof File) {
+      if (value.size > 10 * 1024 * 1024) {
+        return `${field.label} must be less than 10MB.`;
+      }
+      const allowedTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      ];
+      if (!allowedTypes.includes(value.type)) {
+        return `${field.label} format is not supported. Please upload a PDF, Word document, or image.`;
+      }
+    }
     return null;
   }
 
@@ -1113,26 +1121,10 @@ export function validateFieldValue(
   if (field.type === "number") {
     if (typeof value !== "number" || Number.isNaN(value))
       return `${field.label} must be a valid number.`;
-    if (typeof field.validation.min === "number" && value < field.validation.min)
-      return `${field.label} must be at least ${field.validation.min}.`;
-    if (typeof field.validation.max === "number" && value > field.validation.max)
-      return `${field.label} must be at most ${field.validation.max}.`;
     return null;
   }
 
   if (typeof value !== "string") return `${field.label} has an invalid value.`;
-
-  if (
-    typeof field.validation.minLength === "number" &&
-    value.length < field.validation.minLength
-  )
-    return `${field.label} must be at least ${field.validation.minLength} characters.`;
-
-  if (
-    typeof field.validation.maxLength === "number" &&
-    value.length > field.validation.maxLength
-  )
-    return `${field.label} must be at most ${field.validation.maxLength} characters.`;
 
   if (field.type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))
     return `${field.label} must be a valid email address.`;

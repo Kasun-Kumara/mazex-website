@@ -136,10 +136,7 @@ const fieldAttrs = [
   { t:"str",  key:"type",           size:32,   req:true  },
   { t:"bool", key:"required",                  def:false },
   { t:"int",  key:"sortOrder",      min:0, max:2147483647, def:0 },
-  { t:"str",  key:"placeholder",    size:512               },
-  { t:"str",  key:"helpText",       size:1024              },
   { t:"str",  key:"optionsJson",    size:8192              },
-  { t:"str",  key:"validationJson", size:4096              },
 ];
 await createAttrs(FIELDS_COL, fieldAttrs);
 await waitAvailable(FIELDS_COL, fieldAttrs.map(a => a.key));
@@ -150,9 +147,6 @@ console.log("\n📋  registration_submissions");
 await ensureCollection(SUBS_COL, "Registration Submissions");
 const subAttrs = [
   { t:"str", key:"formId",            size:255,   req:true },
-  { t:"str", key:"primaryName",       size:255,   req:true },
-  { t:"str", key:"primaryEmail",      size:255,   req:true },
-  { t:"str", key:"primaryPhone",      size:64              },
   { t:"str", key:"teamName",          size:255             },
   { t:"str", key:"answersJson",       size:16384, req:true },
   { t:"str", key:"memberAnswersJson", size:32768           },

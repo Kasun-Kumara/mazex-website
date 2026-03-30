@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, Variants } from "framer-motion";
 import Image from "next/image";
 import { useMemo } from "react";
 
@@ -42,7 +42,7 @@ const TEAM_MEMBERS = [
   },
 ];
 
-const containerVariants = {
+const containerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
@@ -53,7 +53,7 @@ const containerVariants = {
   },
 };
 
-const hexVariants = {
+const hexVariants: Variants = {
   hidden: { opacity: 0, scale: 0.8 },
   visible: {
     opacity: 1,

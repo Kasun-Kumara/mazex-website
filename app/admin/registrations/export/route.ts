@@ -49,9 +49,6 @@ export async function GET(request: Request) {
 
   const headers = [
     "Submitted At",
-    "Primary Name",
-    "Primary Email",
-    "Primary Phone",
     "Team Name",
     ...submissionFields.map((field) => `Submission: ${field.label}`),
     ...Array.from({ length: maxMembers }).flatMap((_, memberIndex) =>
@@ -62,9 +59,6 @@ export async function GET(request: Request) {
   const rows = details.map((detail) => {
     const baseColumns = [
       detail.createdAt,
-      detail.primaryName,
-      detail.primaryEmail,
-      detail.primaryPhone ?? "",
       detail.teamName ?? "",
       ...submissionFields.map((field) => detail.answers[field.key] ?? ""),
     ];

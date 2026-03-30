@@ -36,11 +36,11 @@ export default async function AdminRegistrationsPage({
     if (!fallbackForm) {
       return (
         <AdminDashboardShell>
-          <div className="admin-panel p-8 text-center">
-            <p className="text-base font-medium text-[var(--admin-text)]">
+          <div className="mx-auto mt-8 max-w-xl rounded-xl border border-dashed border-zinc-300 bg-white p-12 text-center dark:border-zinc-700 dark:bg-zinc-900">
+            <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
               No registration forms yet.
             </p>
-            <p className="mt-2 text-sm text-[var(--admin-muted)]">
+            <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
               Go to Form Builder to create your first form.
             </p>
           </div>

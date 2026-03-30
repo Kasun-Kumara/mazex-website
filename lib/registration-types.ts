@@ -25,12 +25,7 @@ export type FieldOption = {
   value: string;
 };
 
-export type FieldValidation = {
-  minLength?: number;
-  maxLength?: number;
-  min?: number;
-  max?: number;
-};
+// FieldValidation removed
 
 export type FieldDefinition = {
   id: string;
@@ -41,10 +36,7 @@ export type FieldDefinition = {
   type: FieldType;
   required: boolean;
   sortOrder: number;
-  placeholder: string | null;
-  helpText: string | null;
   options: FieldOption[];
-  validation: FieldValidation;
 };
 
 export type FormDefinition = {
@@ -87,9 +79,6 @@ export type SubmissionPayload = {
   formId: string;
   answers: SubmissionAnswers;
   memberAnswers: SubmissionAnswers[];
-  primaryName: string;
-  primaryEmail: string;
-  primaryPhone: string | null;
   teamName: string | null;
 };
 
@@ -99,9 +88,8 @@ export type SubmissionSummary = {
   formSlug: string | null;
   formTitle: string | null;
   createdAt: string;
-  primaryName: string;
-  primaryEmail: string;
-  primaryPhone: string | null;
+  displayTitle: string;
+  displaySubtitle: string | null;
   teamName: string | null;
 };
 

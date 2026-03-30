@@ -26,7 +26,6 @@ import type {
   FieldOption,
   FieldScope,
   FieldType,
-  FieldValidation,
   RegistrationFormKind,
   RegistrationFormStatus,
 } from "@/lib/registration-types";
@@ -398,52 +397,9 @@ function parseFieldDefinitionInput(formData: FormData) {
     throw new Error("Sort order must be a whole number ≥ 0.");
 
   const options = parseOptionsFromText(optionsText);
-  const validation: FieldValidation = {};
 
   if (isChoiceField(typeValue) && options.length === 0)
     throw new Error("Add at least one option for select or radio fields.");
-
-  const minLength = parseOptionalNumber(formData, "minLength");
-  const maxLength = parseOptionalNumber(formData, "maxLength");
-  const minValue = parseOptionalNumber(formData, "minValue");
-  const maxValue = parseOptionalNumber(formData, "maxValue");
-
-  if (
-    (typeValue === "text" || typeValue === "textarea" || isTextLikeField(typeValue)) &&
-    minLength !== undefined
-  ) {
-    if (!Number.isInteger(minLength) || minLength < 0)
-      throw new Error("Minimum length must be a whole number ≥ 0.");
-    validation.minLength = minLength;
-  }
-  if (
-    (typeValue === "text" || typeValue === "textarea" || isTextLikeField(typeValue)) &&
-    maxLength !== undefined
-  ) {
-    if (!Number.isInteger(maxLength) || maxLength < 0)
-      throw new Error("Maximum length must be a whole number ≥ 0.");
-    validation.maxLength = maxLength;
-  }
-  if (typeValue === "number" && minValue !== undefined) {
-    if (!Number.isFinite(minValue)) throw new Error("Minimum value must be a valid number.");
-    validation.min = minValue;
-  }
-  if (typeValue === "number" && maxValue !== undefined) {
-    if (!Number.isFinite(maxValue)) throw new Error("Maximum value must be a valid number.");
-    validation.max = maxValue;
-  }
-  if (
-    typeof validation.minLength === "number" &&
-    typeof validation.maxLength === "number" &&
-    validation.minLength > validation.maxLength
-  )
-    throw new Error("Minimum length cannot exceed maximum length.");
-  if (
-    typeof validation.min === "number" &&
-    typeof validation.max === "number" &&
-    validation.min > validation.max
-  )
-    throw new Error("Minimum value cannot exceed maximum value.");
 
   return {
     formId,
@@ -453,10 +409,7 @@ function parseFieldDefinitionInput(formData: FormData) {
     type: typeValue,
     required,
     sortOrder,
-    placeholder: readOptionalString(formData, "placeholder"),
-    helpText: readOptionalString(formData, "helpText"),
     options,
-    validation,
   };
 }
 
@@ -566,10 +519,7 @@ export async function bulkSaveRegistrationFieldsAction(
     type: FieldType;
     required: boolean;
     sortOrder: number;
-    placeholder: string | null;
-    helpText: string | null;
     options: FieldOption[];
-    validation: FieldValidation;
   }[]
 ): Promise<RegistrationAdminActionState> {
   try {

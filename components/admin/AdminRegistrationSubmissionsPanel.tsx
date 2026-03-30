@@ -7,6 +7,11 @@ import type {
   SubmissionSummary,
 } from "@/lib/registration-types";
 import { getFieldLabelMap } from "@/lib/registrations";
+import FormSelectorDropdown from "@/components/admin/FormSelectorDropdown";
+import SubmissionDrawer from "@/components/admin/SubmissionDrawer";
+import { OptimisticSubmissionDrawer } from "@/components/admin/OptimisticSubmissionDrawer";
+import SubmissionRowInteractive from "@/components/admin/SubmissionRowInteractive";
+import { useRouter } from "next/navigation";
 
 function formatValue(value: unknown) {
   if (value === null || value === undefined || value === "") {
@@ -71,52 +76,57 @@ function buildPageHref({
 function SubmissionDetailPanel({
   form,
   submission,
+  onCloseHref,
 }: {
   form: FormWithFields;
   submission: SubmissionDetail;
+  onCloseHref: string;
 }) {
   const labelMap = getFieldLabelMap(form.fields);
 
   return (
-    <div className="admin-panel p-6 sm:p-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <div className="w-full bg-white p-6 sm:p-8 dark:bg-zinc-900">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-zinc-100 pb-6 dark:border-zinc-800/80">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--admin-muted)]">
+           <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
             Submission Detail
           </p>
-          <h3 className="mt-3 text-2xl font-semibold tracking-[-0.04em] text-[var(--admin-text)]">
-            {submission.primaryName}
+          <h3 className="mt-2 text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+            {submission.displayTitle}
           </h3>
-          <p className="mt-2 text-sm leading-6 text-[var(--admin-muted)]">
+          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
             Submitted on {formatTimestamp(submission.createdAt)}
           </p>
         </div>
 
         <Link
-          href={buildPageHref({ slug: form.slug })}
-          className="admin-button-secondary inline-flex rounded-full px-4 py-2 text-sm font-semibold"
+          href={onCloseHref}
+           className="p-2 -m-2 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800"
+           aria-label="Close"
         >
-          Clear detail view
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
         </Link>
       </div>
 
-      <div className="mt-8 grid gap-4 md:grid-cols-2">
-        <SummaryItem label="Primary email" value={submission.primaryEmail} />
-        {submission.primaryPhone && <SummaryItem label="Primary phone" value={submission.primaryPhone} />}
+      <div className="mt-6 grid gap-4 md:grid-cols-2">
+        {submission.displaySubtitle && <SummaryItem label="Contact" value={submission.displaySubtitle} />}
         {submission.teamName && <SummaryItem label="Team name" value={submission.teamName} />}
         <SummaryItem label="Form" value={submission.formTitle ?? form.title} />
       </div>
 
-      <div className="mt-8 rounded-[1.4rem] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-5">
-        <h4 className="text-lg font-semibold text-[var(--admin-text)]">
+      <div className="mt-6 rounded-lg border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-950">
+        <h4 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
           Submission fields
         </h4>
-        <div className="mt-5 space-y-3">
+        <div className="mt-4 space-y-3">
           {Object.entries(submission.answers).map(([key, value]) => (
             <SummaryItem
               key={key}
               label={labelMap.get(key) ?? key}
               value={formatValue(value)}
+              vertical
             />
           ))}
         </div>
@@ -124,23 +134,24 @@ function SubmissionDetailPanel({
 
       {submission.memberAnswers.length > 0 ? (
         <div className="mt-8 space-y-4">
-          <h4 className="text-lg font-semibold text-[var(--admin-text)]">
+          <h4 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
             Team members
           </h4>
           {submission.memberAnswers.map((member, index) => (
-            <div
+             <div
               key={`${submission.id}-member-${index}`}
-              className="rounded-[1.4rem] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-5"
+              className="rounded-lg border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-950"
             >
-              <p className="text-sm font-semibold text-[var(--admin-text)]">
+               <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-4 border-b border-zinc-200 dark:border-zinc-800 pb-2">
                 Member {index + 1}
               </p>
-              <div className="mt-4 space-y-3">
+              <div className="space-y-3">
                 {Object.entries(member).map(([key, value]) => (
                   <SummaryItem
                     key={`${submission.id}-${index}-${key}`}
                     label={labelMap.get(key) ?? key}
                     value={formatValue(value)}
+                    vertical
                   />
                 ))}
               </div>
@@ -152,11 +163,22 @@ function SubmissionDetailPanel({
   );
 }
 
-function SummaryItem({ label, value }: { label: string; value: string }) {
+function SummaryItem({ label, value, vertical = false }: { label: string; value: string; vertical?: boolean }) {
+  if (vertical) {
+    return (
+       <div className="rounded-md border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
+        <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">{label}</p>
+        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 whitespace-pre-wrap break-words">
+          {value}
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface-muted)] px-4 py-3">
-      <span className="text-sm text-[var(--admin-muted)]">{label}</span>
-      <span className="text-sm font-semibold text-[var(--admin-text)]">
+    <div className="flex items-center justify-between gap-3 rounded-md border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
+      <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{label}</span>
+      <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 text-right truncate">
         {value}
       </span>
     </div>
@@ -168,41 +190,54 @@ function SubmissionRow({
   submission,
   from,
   to,
+  isActive,
+  sequenceNumber,
 }: {
   form: FormWithFields;
   submission: SubmissionSummary;
   from?: string | null;
   to?: string | null;
+  isActive?: boolean;
+  sequenceNumber: number;
 }) {
   return (
-    <Link
-      href={buildPageHref({
-        slug: form.slug,
-        from,
-        to,
-        submissionId: submission.id,
-      })}
-      className="admin-panel-subtle block rounded-[1.4rem] p-5 transition hover:border-[var(--admin-border-strong)]"
-    >
+      <SubmissionRowInteractive
+        href={buildPageHref({
+          slug: form.slug,
+          from,
+          to,
+          submissionId: submission.id,
+        })}
+        isActive={!!isActive}
+        submissionId={submission.id}
+      >
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-[var(--admin-text)]">
-            {submission.primaryName}
-          </p>
-          <p className="mt-1 text-sm text-[var(--admin-muted)]">
-            {submission.primaryEmail}
-          </p>
+        <div className="flex items-start gap-3">
+          <div className="flex h-6 min-w-[2.5rem] shrink-0 items-center justify-center rounded-md bg-zinc-100 px-2 text-xs font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+            #{sequenceNumber}
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 line-clamp-1">
+              {submission.displayTitle}
+            </p>
+            {submission.displaySubtitle && (
+              <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400 line-clamp-1">
+                {submission.displaySubtitle}
+              </p>
+            )}
+          </div>
         </div>
-        <p className="text-xs uppercase tracking-[0.22em] text-[var(--admin-muted)]">
+        <p className="text-[10px] text-zinc-400 dark:text-zinc-500 whitespace-nowrap pt-1">
           {formatTimestamp(submission.createdAt)}
         </p>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
-        {submission.primaryPhone && <SummaryItem label="Phone" value={submission.primaryPhone} />}
-        {submission.teamName && <SummaryItem label="Team" value={submission.teamName} />}
-      </div>
-    </Link>
+      {submission.teamName && (
+        <div className="mt-3 grid gap-2 md:grid-cols-2">
+          <SummaryItem label="Team" value={submission.teamName} />
+        </div>
+      )}
+    </SubmissionRowInteractive>
   );
 }
 
@@ -235,175 +270,156 @@ export default function AdminRegistrationSubmissionsPanel({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
-      <div className="admin-panel p-6 sm:p-8">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-3xl">
-            <div className="theme-chip text-[11px] font-bold uppercase tracking-[0.28em]">
-              Registrations
-            </div>
-            <h2 className="mt-4 text-3xl font-semibold tracking-[-0.05em] text-[var(--admin-text)]">
-              Submission inbox
-            </h2>
-            <p className="mt-3 text-sm leading-7 text-[var(--admin-subtle)]">
-              Review submissions for each of the five forms separately, inspect
-              full responses, and export each form’s data when needed.
-            </p>
-          </div>
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 sm:px-0 pb-10">
+      <OptimisticSubmissionDrawer />
+      <FormSelectorDropdown
+        items={forms.map((f) => ({
+          id: f.id,
+          title: f.title,
+          href: buildPageHref({ slug: f.slug, from, to }),
+          status: f.status,
+          kind: f.kind,
+        }))}
+        selectedId={form.id}
+      />
 
-          <Link
-            href={`/admin/form-builder?form=${form.slug}`}
-            className="theme-button inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold"
-          >
-            Open form builder
-          </Link>
-        </div>
-
-        <div className="mt-8 grid gap-3 lg:grid-cols-5">
-          {forms.map((item) => (
-            <Link
-              key={item.id}
-              href={buildPageHref({ slug: item.slug })}
-              className={`rounded-2xl border px-4 py-4 text-left transition ${
-                item.id === form.id
-                  ? "border-sky-500/35 bg-sky-500/10 text-[var(--admin-text)]"
-                  : "border-[var(--admin-border)] bg-[var(--admin-surface)] text-[var(--admin-muted)] hover:border-[var(--admin-border-strong)] hover:text-[var(--admin-text)]"
-              }`}
-            >
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em]">
-                {item.kind}
-              </p>
-              <p className="mt-2 text-sm font-semibold leading-6">{item.title}</p>
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      <div className="admin-panel p-6 sm:p-8">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+       <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8 dark:border-zinc-800 dark:bg-zinc-900">
+         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-zinc-100 pb-6 dark:border-zinc-800/80">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--admin-muted)]">
-              Submissions
-            </p>
-            <h3 className="mt-3 text-2xl font-semibold tracking-[-0.04em] text-[var(--admin-text)]">
-              {form.title}
+            <h3 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+              {form.title} Submissions
             </h3>
-            <p className="mt-2 text-sm leading-6 text-[var(--admin-muted)]">
+            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
               Filter by date range, inspect individual submissions, and export the
-              current form’s data as CSV.
+              current form’s data.
             </p>
           </div>
 
           <a
             href={`/admin/registrations/export?${exportParams.toString()}`}
-            className="theme-button inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold"
+            title="Download CSV"
+            className="inline-flex items-center justify-center rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-2 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200 dark:focus:ring-zinc-300 transition-colors"
           >
             Export CSV
           </a>
         </div>
 
-        <form className="mt-8 grid gap-4 md:grid-cols-[1fr_1fr_auto]">
+        <form className="mt-6 flex flex-col md:flex-row md:items-end gap-4">
           <input type="hidden" name="form" value={form.slug} />
-          <div className="space-y-3">
-            <label className="block text-sm font-medium text-[var(--admin-text)]">
+           <div className="flex-1 space-y-1">
+            <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
               From date
             </label>
             <input
               type="date"
               name="from"
               defaultValue={from ?? ""}
-              className="h-[52px] w-full rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface)] px-4 text-sm text-[var(--admin-text)] outline-none"
+              className="block h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 sm:text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
             />
           </div>
 
-          <div className="space-y-3">
-            <label className="block text-sm font-medium text-[var(--admin-text)]">
+           <div className="flex-1 space-y-1">
+            <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
               To date
             </label>
             <input
               type="date"
               name="to"
               defaultValue={to ?? ""}
-              className="h-[52px] w-full rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface)] px-4 text-sm text-[var(--admin-text)] outline-none"
+             className="block h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 sm:text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
             />
           </div>
 
           <div className="flex items-end">
             <button
               type="submit"
-              className="theme-button inline-flex h-[52px] w-full items-center justify-center rounded-2xl px-5 text-sm font-semibold md:w-auto"
+               className="inline-flex h-10 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:focus:ring-zinc-300 transition-colors"
             >
               Apply filters
             </button>
           </div>
         </form>
 
-        <div className="mt-8 space-y-4">
-          {submissionPage.submissions.length > 0 ? (
-            submissionPage.submissions.map((submission) => (
-              <SubmissionRow
-                key={submission.id}
-                form={form}
-                submission={submission}
-                from={from}
-                to={to}
-              />
-            ))
-          ) : (
-            <div className="admin-panel-subtle rounded-[1.4rem] p-8 text-center">
-              <p className="text-base font-medium text-[var(--admin-text)]">
-                No submissions found.
-              </p>
-              <p className="mt-2 text-sm leading-6 text-[var(--admin-muted)]">
-                Once users submit this form, they will appear here.
-              </p>
+        <div className="mt-8">
+            <div className="space-y-3">
+            {submissionPage.submissions.length > 0 ? (
+                submissionPage.submissions.map((submission, index) => {
+                  const sequenceNumber = submissionPage.total - ((submissionPage.page - 1) * submissionPage.pageSize) - index;
+                  return (
+                    <SubmissionRow
+                        key={submission.id}
+                        form={form}
+                        submission={submission}
+                        from={from}
+                        to={to}
+                        isActive={selectedSubmission?.id === submission.id}
+                        sequenceNumber={sequenceNumber}
+                    />
+                  );
+                })
+            ) : (
+                <div className="rounded-lg border border-dashed border-zinc-300 p-8 text-center dark:border-zinc-700">
+                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                    No submissions found
+                </p>
+                <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                    Once users submit this form, they will appear here.
+                </p>
+                </div>
+            )}
+            
+            {submissionPage.total > submissionPage.pageSize ? (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-4 border-t border-zinc-100 pt-4 dark:border-zinc-800/80">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+                  Page {submissionPage.page} of {totalPages}
+                </p>
+
+                <div className="flex items-center gap-2">
+                  <Link
+                    href={buildPageHref({
+                      slug: form.slug,
+                      page: Math.max(1, submissionPage.page - 1),
+                      from,
+                      to,
+                    })}
+                    className={`inline-flex items-center justify-center rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-300 ${
+                      submissionPage.page <= 1 ? "pointer-events-none opacity-50" : ""
+                    }`}
+                  >
+                    Prev
+                  </Link>
+                  <Link
+                    href={buildPageHref({
+                      slug: form.slug,
+                      page: Math.min(totalPages, submissionPage.page + 1),
+                      from,
+                      to,
+                    })}
+                    className={`inline-flex items-center justify-center rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-300 ${
+                      submissionPage.page >= totalPages
+                        ? "pointer-events-none opacity-50"
+                        : ""
+                    }`}
+                  >
+                    Next
+                  </Link>
+                </div>
+              </div>
+            ) : null}
+
             </div>
-          )}
+
+            {selectedSubmission && (
+              <SubmissionDrawer onCloseHref={buildPageHref({ slug: form.slug, from, to, page: submissionPage.page })}>
+                <SubmissionDetailPanel 
+                  form={form} 
+                  submission={selectedSubmission} 
+                  onCloseHref={buildPageHref({ slug: form.slug, from, to, page: submissionPage.page })} 
+                />
+              </SubmissionDrawer>
+            )}
         </div>
-
-        {submissionPage.total > submissionPage.pageSize ? (
-          <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
-            <p className="text-sm text-[var(--admin-muted)]">
-              Page {submissionPage.page} of {totalPages}
-            </p>
-
-            <div className="flex items-center gap-3">
-              <Link
-                href={buildPageHref({
-                  slug: form.slug,
-                  page: Math.max(1, submissionPage.page - 1),
-                  from,
-                  to,
-                })}
-                className={`admin-button-secondary inline-flex rounded-full px-4 py-2 text-sm font-semibold ${
-                  submissionPage.page <= 1 ? "pointer-events-none opacity-50" : ""
-                }`}
-              >
-                Previous
-              </Link>
-              <Link
-                href={buildPageHref({
-                  slug: form.slug,
-                  page: Math.min(totalPages, submissionPage.page + 1),
-                  from,
-                  to,
-                })}
-                className={`admin-button-secondary inline-flex rounded-full px-4 py-2 text-sm font-semibold ${
-                  submissionPage.page >= totalPages
-                    ? "pointer-events-none opacity-50"
-                    : ""
-                }`}
-              >
-                Next
-              </Link>
-            </div>
-          </div>
-        ) : null}
       </div>
-
-      {selectedSubmission ? (
-        <SubmissionDetailPanel form={form} submission={selectedSubmission} />
-      ) : null}
     </div>
   );
 }

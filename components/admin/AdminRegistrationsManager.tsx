@@ -8,6 +8,7 @@ import {
   CheckCircle2, ExternalLink, FileImage, GripHorizontal,
   Loader2, Plus, Settings2, ShieldAlert, Trash2, X, ChevronDown,
 } from "lucide-react";
+import FormSelectorDropdown from "@/components/admin/FormSelectorDropdown";
 import {
   createRegistrationFormAction,
   deleteFormBannerAction,
@@ -56,10 +57,10 @@ function Toast({ state, onClose }: { state: RegistrationAdminActionState; onClos
   if (state.status === "idle" || !state.message) return null;
   const ok = state.status === "success";
   return (
-    <div role="status" className={`fixed right-4 top-24 z-50 flex max-w-sm items-center gap-3 rounded-2xl border px-4 py-3 text-sm shadow-2xl backdrop-blur-xl sm:right-6 ${ok ? "border-emerald-500/25 bg-emerald-950/80 text-emerald-200" : "border-rose-500/25 bg-rose-950/80 text-rose-200"}`}>
-      {ok ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <ShieldAlert className="h-4 w-4 shrink-0" />}
-      <p className="flex-1">{state.message}</p>
-      <button type="button" onClick={onClose} className="ml-2 opacity-60 hover:opacity-100"><X className="h-3.5 w-3.5" /></button>
+    <div role="status" className={`fixed left-4 right-4 top-4 z-50 mx-auto flex w-auto max-w-sm items-start gap-3 rounded-lg border px-4 py-3 text-sm shadow-xl sm:left-auto sm:right-6 ${ok ? "border-emerald-500/30 bg-emerald-50 text-emerald-900 dark:bg-emerald-500/10 dark:text-emerald-100" : "border-rose-500/30 bg-rose-50 text-rose-900 dark:bg-rose-500/10 dark:text-rose-100"}`}>
+      {ok ? <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" /> : <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0" />}
+      <p className="flex-1 pr-2 leading-tight">{state.message}</p>
+      <button type="button" onClick={onClose} aria-label="Close notification" className="flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-md transition hover:bg-black/5 dark:hover:bg-white/10"><X className="h-4 w-4" /></button>
     </div>
   );
 }
@@ -70,28 +71,6 @@ function useToast(state: RegistrationAdminActionState) {
   return { visible, dismiss: () => setKey(state.toastKey) };
 }
 
-// ─── Form Tabs Bar ────────────────────────────────────────────────────────────
-function FormTabsBar({ forms, selectedId, canCreate, onNew }: {
-  forms: FormDefinition[]; selectedId?: string; canCreate: boolean; onNew: () => void;
-}) {
-  return (
-    <div className="flex flex-wrap items-center gap-2 pb-2">
-      {forms.map(f => (
-        <Link key={f.id} href={`/admin/form-builder?form=${f.slug}`}
-          className={`flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-medium transition ${f.id === selectedId ? "border-sky-500/40 bg-sky-500/15 text-sky-200" : "border-[var(--admin-border)] bg-[var(--admin-surface)] text-[var(--admin-muted)] hover:text-[var(--admin-text)]"}`}>
-          <span className={`h-2 w-2 rounded-full ${f.status === "open" ? "bg-emerald-400" : f.status === "draft" ? "bg-amber-400" : "bg-rose-400"}`} />
-          {f.title}
-        </Link>
-      ))}
-      {canCreate && (
-        <button type="button" onClick={onNew}
-          className="flex items-center gap-1.5 rounded-2xl border border-dashed border-[var(--admin-border)] px-4 py-2.5 text-sm text-[var(--admin-muted)] transition hover:border-[var(--admin-accent)] hover:text-[var(--admin-accent)]">
-          <Plus className="h-4 w-4" /> New form
-        </button>
-      )}
-    </div>
-  );
-}
 
 // ─── Create Form Panel ────────────────────────────────────────────────────────
 function CreateFormPanel({ formCount, onCancel }: { formCount: number; onCancel: () => void }) {
@@ -103,35 +82,35 @@ function CreateFormPanel({ formCount, onCancel }: { formCount: number; onCancel:
   return (
     <>
       {toast.visible && <Toast state={toast.visible} onClose={toast.dismiss} />}
-      <div className="mx-auto max-w-xl">
-        <div className="overflow-hidden rounded-3xl border border-[var(--admin-border)] bg-[var(--admin-surface)]">
-          <div className="h-2 w-full bg-gradient-to-r from-sky-500 to-violet-500" />
-          <div className="p-8">
-            <h2 className="text-2xl font-semibold tracking-tight text-[var(--admin-text)]">Create registration form</h2>
-            <p className="mt-1 text-sm text-[var(--admin-muted)]">{formCount} of {MAX_REGISTRATION_FORMS} forms used</p>
-            <form action={dispatch} className="mt-6 space-y-4">
+      <div className="mx-auto max-w-xl px-4 sm:px-0 mt-8">
+        <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="h-2 w-full bg-zinc-900 dark:bg-zinc-100" />
+          <div className="p-6 sm:p-8">
+            <h2 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">Create registration form</h2>
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{formCount} of {MAX_REGISTRATION_FORMS} forms used</p>
+            <form action={dispatch} className="mt-6 space-y-5">
               <div>
                 <input name="title" type="text" placeholder="Form title" value={title} required
                   onChange={e => { setTitle(e.target.value); if (!slug) setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")); }}
-                  className="w-full border-b border-[var(--admin-border)] bg-transparent pb-2 text-xl font-semibold text-[var(--admin-text)] outline-none placeholder:text-[var(--admin-muted)] focus:border-sky-400" />
+                  className="block w-full border-0 border-b-2 border-zinc-200 bg-transparent px-0 py-2 text-xl font-bold text-zinc-900 placeholder-zinc-400 focus:border-zinc-900 focus:ring-0 dark:border-zinc-800 dark:text-zinc-50 dark:placeholder-zinc-600 dark:focus:border-zinc-400" />
               </div>
               <div>
-                <select name="kind" className="h-10 w-full rounded-xl border border-[var(--admin-border)] bg-[var(--admin-background)] px-3 text-sm text-[var(--admin-text)] outline-none">
+                <select name="kind" className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 sm:text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 dark:focus:border-zinc-400 dark:focus:ring-zinc-400">
                   {REGISTRATION_FORM_KINDS.map(k => <option key={k} value={k}>{k.charAt(0).toUpperCase() + k.slice(1)}</option>)}
                 </select>
               </div>
               <div>
-                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-[var(--admin-muted)]">
+                 <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                   Slug — <span className="font-normal normal-case tracking-normal">yoursite.com/{slug || "…"}</span>
                 </label>
                 <input name="slug" type="text" value={slug} required
                   onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+/, ""))}
-                  className="h-10 w-full rounded-xl border border-[var(--admin-border)] bg-[var(--admin-background)] px-3 text-sm text-[var(--admin-text)] outline-none focus:border-sky-400" />
+                   className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 sm:text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 dark:focus:border-zinc-400 dark:focus:ring-zinc-400" />
               </div>
-              {state.status === "error" && <p className="text-sm text-rose-300">{state.message}</p>}
+              {state.status === "error" && <p className="text-sm text-rose-600 dark:text-rose-400">{state.message}</p>}
               <div className="flex gap-3 pt-2">
-                <button type="submit" className="theme-button rounded-2xl px-5 py-2.5 text-sm font-semibold">Create form</button>
-                <button type="button" onClick={onCancel} className="admin-button-secondary rounded-2xl px-5 py-2.5 text-sm font-semibold">Cancel</button>
+                <button type="submit" className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-2 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200 dark:focus:ring-zinc-300 transition-colors">Create form</button>
+                <button type="button" onClick={onCancel} className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:focus:ring-zinc-300 transition-colors">Cancel</button>
               </div>
             </form>
           </div>
@@ -149,25 +128,25 @@ function BannerArea({ form, bannerUrl }: { form: FormDefinition; bannerUrl: stri
   const formRef = useRef<HTMLFormElement>(null);
 
   return (
-    <div className="relative overflow-hidden rounded-t-2xl">
+    <div className="relative overflow-hidden w-full border-b border-zinc-200 dark:border-zinc-800">
       {bannerUrl ? (
-        <div className="relative h-40 w-full">
+        <div className="relative h-40 w-full group">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={bannerUrl} alt="Banner" className="h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent" />
-          <div className="absolute bottom-3 right-3 flex gap-2">
+          <div className="absolute inset-0 bg-black/40 opacity-0 transition-opacity group-hover:opacity-100" />
+          <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
             <form action={uploadDispatch} ref={formRef}>
               <input type="hidden" name="formId" value={form.id} />
               <input ref={fileRef} type="file" name="banner" accept="image/*" className="hidden"
                 onChange={() => formRef.current?.requestSubmit()} />
               <button type="button" onClick={() => fileRef.current?.click()}
-                className="rounded-xl bg-black/40 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm hover:bg-black/60">
+                className="rounded-md bg-white/20 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-md hover:bg-white/30 transition-colors border border-white/20">
                 Replace banner
               </button>
             </form>
             <form action={deleteDispatch}>
               <input type="hidden" name="formId" value={form.id} />
-              <button type="submit" className="rounded-xl bg-black/40 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm hover:bg-rose-500/60">Remove</button>
+              <button type="submit" className="rounded-md bg-rose-500/80 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-md hover:bg-rose-500 transition-colors border border-rose-500/20">Remove</button>
             </form>
           </div>
         </div>
@@ -177,7 +156,7 @@ function BannerArea({ form, bannerUrl }: { form: FormDefinition; bannerUrl: stri
           <input ref={fileRef} type="file" name="banner" accept="image/*" className="hidden"
             onChange={() => formRef.current?.requestSubmit()} />
           <button type="button" onClick={() => fileRef.current?.click()}
-            className="flex h-16 w-full items-center justify-center gap-2 bg-[var(--admin-surface-muted)] text-sm text-[var(--admin-muted)] transition hover:bg-[var(--admin-surface)] hover:text-[var(--admin-text)]">
+             className="flex h-20 w-full items-center justify-center gap-2 bg-zinc-50 text-sm font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:bg-zinc-950 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-100">
             <FileImage className="h-4 w-4" /> Add banner image
           </button>
         </form>
@@ -207,90 +186,90 @@ function SettingsPanel({ form }: { form: FormWithFields }) {
   return (
     <>
       {toast && <Toast state={toast} onClose={st.visible ? st.dismiss : dt.dismiss} />}
-      <div className="border-t border-[var(--admin-border)]">
+      <div className="border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
         <button type="button" onClick={() => setOpen(o => !o)}
-          className="flex w-full items-center justify-between px-6 py-3 text-sm font-medium text-[var(--admin-muted)] hover:text-[var(--admin-text)]">
-          <span className="flex items-center gap-2"><Settings2 className="h-4 w-4" /> Form settings</span>
+          className="flex w-full items-center justify-between px-6 py-4 text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50 transition-colors">
+           <span className="flex items-center gap-2 font-semibold"><Settings2 className="h-4 w-4" /> Form settings</span>
           <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
         </button>
 
         {open && (
-          <form action={settingsDispatch} className="border-t border-[var(--admin-border)] px-6 pb-6 pt-4">
+           <form action={settingsDispatch} className="border-t border-zinc-200 px-6 pb-6 pt-4 dark:border-zinc-800 bg-white dark:bg-zinc-900">
             <input type="hidden" name="formId" value={form.id} />
-            <div className="grid gap-4 sm:grid-cols-2">
+             <div className="grid gap-5 sm:grid-cols-2">
               <div className="sm:col-span-2">
-                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-[var(--admin-muted)]">Form Title</label>
-                <input name="title" defaultValue={form.title} required
-                  className="h-10 w-full rounded-xl border border-[var(--admin-border)] bg-[var(--admin-background)] px-3 text-sm text-[var(--admin-text)] outline-none focus:border-sky-400" />
+                 <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Form Title</label>
+                 <input name="title" defaultValue={form.title} required
+                  className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 sm:text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 dark:focus:border-zinc-400 dark:focus:ring-zinc-400" />
               </div>
               <div className="sm:col-span-2">
-                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-[var(--admin-muted)]">
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                   Slug — <span className="font-normal normal-case">yoursite.com/{slug || "…"}</span>
-                  <a href={`/${slug}`} target="_blank" className="ml-2 inline-flex text-sky-400 hover:text-sky-300"><ExternalLink className="h-3 w-3" /></a>
+                  <a href={`/${slug}`} target="_blank" className="ml-2 inline-flex text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"><ExternalLink className="h-3 w-3" /></a>
                 </label>
                 <input name="slug" value={slug} onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+/, ""))}
-                  className="h-10 w-full rounded-xl border border-[var(--admin-border)] bg-[var(--admin-background)] px-3 text-sm text-[var(--admin-text)] outline-none focus:border-sky-400" />
+                   className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 sm:text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 dark:focus:border-zinc-400 dark:focus:ring-zinc-400" />
               </div>
               <div>
-                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-[var(--admin-muted)]">Status</label>
-                <select name="status" defaultValue={form.status} className="h-10 w-full rounded-xl border border-[var(--admin-border)] bg-[var(--admin-background)] px-3 text-sm text-[var(--admin-text)] outline-none">
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Status</label>
+                 <select name="status" defaultValue={form.status} className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 sm:text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 dark:focus:border-zinc-400 dark:focus:ring-zinc-400">
                   <option value="draft">Draft</option><option value="open">Open</option><option value="closed">Closed</option>
                 </select>
               </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-[var(--admin-muted)]">Min / Max members</label>
+               <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Min / Max members</label>
                 <div className="flex gap-2">
                   <input name="teamMinMembers" type="number" min={1} max={50} defaultValue={form.teamMinMembers} disabled={form.kind !== "competition"}
-                    className="h-10 w-full rounded-xl border border-[var(--admin-border)] bg-[var(--admin-background)] px-3 text-sm text-[var(--admin-text)] outline-none disabled:opacity-40" />
+                     className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 sm:text-sm disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 dark:focus:border-zinc-400 dark:focus:ring-zinc-400" />
                   <input name="teamMaxMembers" type="number" min={1} max={50} defaultValue={form.teamMaxMembers} disabled={form.kind !== "competition"}
-                    className="h-10 w-full rounded-xl border border-[var(--admin-border)] bg-[var(--admin-background)] px-3 text-sm text-[var(--admin-text)] outline-none disabled:opacity-40" />
+                     className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 sm:text-sm disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 dark:focus:border-zinc-400 dark:focus:ring-zinc-400" />
                 </div>
               </div>
               <div>
-                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-[var(--admin-muted)]">Opens at</label>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Opens at</label>
                 <input type="datetime-local" defaultValue={localDt(form.openAt)}
                   onChange={e => {
                     const hidden = e.target.nextElementSibling as HTMLInputElement;
                     hidden.value = e.target.value ? new Date(e.target.value).toISOString() : "";
                   }}
-                  className="h-10 w-full rounded-xl border border-[var(--admin-border)] bg-[var(--admin-background)] px-3 text-sm text-[var(--admin-text)] outline-none" />
+                  className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 sm:text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 dark:focus:border-zinc-400 dark:focus:ring-zinc-400" />
                 <input type="hidden" name="openAt" defaultValue={form.openAt || ""} />
               </div>
               <div>
-                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-[var(--admin-muted)]">Closes at</label>
+                 <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Closes at</label>
                 <input type="datetime-local" defaultValue={localDt(form.closeAt)}
                   onChange={e => {
                     const hidden = e.target.nextElementSibling as HTMLInputElement;
                     hidden.value = e.target.value ? new Date(e.target.value).toISOString() : "";
                   }}
-                  className="h-10 w-full rounded-xl border border-[var(--admin-border)] bg-[var(--admin-background)] px-3 text-sm text-[var(--admin-text)] outline-none" />
+                  className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 sm:text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 dark:focus:border-zinc-400 dark:focus:ring-zinc-400" />
                 <input type="hidden" name="closeAt" defaultValue={form.closeAt || ""} />
               </div>
               <div className="sm:col-span-2">
-                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-[var(--admin-muted)]">Description</label>
+                 <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Description</label>
                 <input name="description" type="text" defaultValue={form.description ?? ""}
-                  className="h-10 w-full rounded-xl border border-[var(--admin-border)] bg-[var(--admin-background)] px-3 text-sm text-[var(--admin-text)] outline-none" />
+                  className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 sm:text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 dark:focus:border-zinc-400 dark:focus:ring-zinc-400" />
               </div>
               <div className="sm:col-span-2">
-                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-[var(--admin-muted)]">Success message</label>
+                 <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Success message</label>
                 <textarea name="successMessage" rows={3} defaultValue={form.successMessage ?? ""}
-                  className="w-full rounded-xl border border-[var(--admin-border)] bg-[var(--admin-background)] px-3 py-2 text-sm text-[var(--admin-text)] outline-none" />
+                  className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 sm:text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 dark:focus:border-zinc-400 dark:focus:ring-zinc-400" />
               </div>
             </div>
 
-            {settingsState.status === "error" && <p className="mt-3 text-sm text-rose-300">{settingsState.message}</p>}
+            {settingsState.status === "error" && <p className="mt-3 text-sm text-rose-600 dark:text-rose-400">{settingsState.message}</p>}
 
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <button type="submit" className="theme-button rounded-2xl px-5 py-2.5 text-sm font-semibold">Save settings</button>
+             <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-zinc-200 dark:border-zinc-800 pt-4">
+               <button type="submit" className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-2 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200 dark:focus:ring-zinc-300 transition-colors">Save settings</button>
               {confirmDelete ? (
                 <form action={deleteDispatch} className="flex items-center gap-2">
                   <input type="hidden" name="formId" value={form.id} />
-                  <span className="text-sm text-rose-300">Delete this form and all its data?</span>
-                  <button type="submit" className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500">Yes, delete</button>
-                  <button type="button" onClick={() => setConfirmDelete(false)} className="admin-button-secondary rounded-xl px-4 py-2 text-sm font-semibold">Cancel</button>
+                  <span className="text-sm font-medium text-rose-600 dark:text-rose-400 ml-2">Delete data?</span>
+                  <button type="submit" className="rounded-md bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-500 transition-colors">Yes, delete</button>
+                  <button type="button" onClick={() => setConfirmDelete(false)} className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-900 transition-colors">Cancel</button>
                 </form>
               ) : (
-                <button type="button" onClick={() => setConfirmDelete(true)} className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm text-rose-400 hover:bg-rose-500/10">
+                <button type="button" onClick={() => setConfirmDelete(true)} className="flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10 transition-colors">
                   <Trash2 className="h-4 w-4" /> Delete form
                 </button>
               )}
@@ -328,16 +307,16 @@ function OptionList({ type, options, onChange }: {
     <div className="mt-4 space-y-2">
       {options.map(o => (
         <div key={o.id} className="flex items-center gap-3 group">
-          <span className="w-4 shrink-0 text-center text-[var(--admin-muted)]">{icon}</span>
+          <span className="w-4 shrink-0 text-center text-zinc-400 dark:text-zinc-500 font-medium">{icon}</span>
           <input value={o.label} onChange={e => update(o.id, e.target.value)}
-            className="flex-1 border-b border-transparent bg-transparent py-1 text-sm text-[var(--admin-text)] outline-none focus:border-[var(--admin-accent)] group-hover:border-[var(--admin-border)]" />
-          <button type="button" onClick={() => remove(o.id)} className="opacity-0 group-hover:opacity-100 text-[var(--admin-muted)] hover:text-rose-400">
-            <X className="h-3.5 w-3.5" />
+            className="flex-1 border-0 border-b border-transparent bg-transparent px-0 py-1 text-sm text-zinc-900 focus:border-zinc-900 focus:ring-0 group-hover:border-zinc-300 dark:text-zinc-50 dark:focus:border-zinc-400 dark:group-hover:border-zinc-700 transition-colors" />
+          <button type="button" onClick={() => remove(o.id)} className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-rose-500 transition-all">
+            <X className="h-4 w-4" />
           </button>
         </div>
       ))}
-      <button type="button" onClick={add} className="flex items-center gap-3 text-sm text-[var(--admin-muted)] hover:text-sky-400">
-        <span className="w-4 text-center">{icon}</span>
+      <button type="button" onClick={add} className="flex items-center gap-3 text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 transition-colors mt-2">
+        <span className="w-4 text-center font-medium text-zinc-400">{icon}</span>
         <span>Add option</span>
       </button>
     </div>
@@ -347,15 +326,15 @@ function OptionList({ type, options, onChange }: {
 // ─── Field Preview (non-choice types) ────────────────────────────────────────
 function FieldPreview({ type }: { type: FieldType }) {
   if (type === "text" || type === "email" || type === "tel" || type === "number" || type === "date" || type === "time") {
-    return <div className="mt-4 border-b border-[var(--admin-border)] pb-1"><span className="text-sm text-[var(--admin-muted)]">{TYPE_LABELS[type]} answer</span></div>;
+    return <div className="mt-4 border-b border-dashed border-zinc-300 pb-2 dark:border-zinc-700 w-[60%]"><span className="text-sm font-medium text-zinc-400 dark:text-zinc-500">{TYPE_LABELS[type]} answer</span></div>;
   }
   if (type === "textarea") {
-    return <div className="mt-4 border-b border-[var(--admin-border)] pb-4"><span className="text-sm text-[var(--admin-muted)]">Long answer text</span></div>;
+    return <div className="mt-4 border-b border-dashed border-zinc-300 pb-6 dark:border-zinc-700 w-full"><span className="text-sm font-medium text-zinc-400 dark:text-zinc-500">Long answer text</span></div>;
   }
   if (type === "file") {
     return (
-      <div className="mt-4 flex items-center justify-center rounded-xl border border-dashed border-[var(--admin-border)] bg-[var(--admin-surface)] p-6">
-        <span className="text-sm text-[var(--admin-muted)] text-center font-medium">Click to upload file</span>
+      <div className="mt-4 flex items-center justify-center rounded-lg border-2 border-dashed border-zinc-200 bg-zinc-50 p-6 dark:border-zinc-800 dark:bg-zinc-900/50">
+        <span className="text-sm font-medium text-zinc-400 dark:text-zinc-500">Click to upload file</span>
       </div>
     );
   }
@@ -377,35 +356,35 @@ function FieldCard({ field, onChange, onDelete }: {
   };
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface)] transition-all">
+    <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm transition-all focus-within:ring-2 focus-within:ring-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:focus-within:ring-zinc-400">
 
       {/* Drag handle */}
-      <div className="flex cursor-grab justify-center py-2 opacity-30 transition-opacity hover:opacity-100 active:cursor-grabbing">
-        <GripHorizontal className="h-4 w-4 text-[var(--admin-muted)]" />
+      <div className="flex cursor-grab justify-center py-2 opacity-30 transition-opacity hover:opacity-100 active:cursor-grabbing bg-zinc-50 dark:bg-zinc-950/50">
+        <GripHorizontal className="h-4 w-4 text-zinc-500" />
       </div>
 
       {/* Question row */}
-      <div className="flex items-start gap-4 px-6 pb-4">
+      <div className="flex flex-col sm:flex-row items-start gap-4 px-6 pt-2 pb-4">
         <input value={label} onChange={e => {
             const newLabel = e.target.value;
             const newKey = newLabel.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "field";
             update({ label: newLabel, key: newKey });
           }}
-          className="flex-1 border-b border-[var(--admin-border)] bg-transparent pb-2 text-base font-medium text-[var(--admin-text)] outline-none focus:border-sky-400"
+          className="flex-1 w-full border-0 border-b-2 border-zinc-100 bg-transparent px-0 pb-2 text-base font-medium text-zinc-900 focus:border-zinc-900 focus:ring-0 dark:border-zinc-800 dark:text-zinc-50 dark:focus:border-zinc-400"
           placeholder="Untitled question" />
 
         {/* Type selector */}
-        <div className="relative shrink-0">
+        <div className="relative shrink-0 w-full sm:w-48 mt-2 sm:mt-0">
           <select value={type} onChange={e => update({ type: e.target.value as FieldType })}
-            className="h-10 appearance-none rounded-xl border border-[var(--admin-border)] bg-[var(--admin-background)] pl-3 pr-8 text-sm text-[var(--admin-text)] outline-none focus:border-sky-400">
+            className="block w-full appearance-none rounded-md border border-zinc-300 bg-white py-2 pl-3 pr-8 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 dark:focus:border-zinc-400 dark:focus:ring-zinc-400">
             {ALL_TYPES.map(t => <option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
           </select>
-          <ChevronDown className="pointer-events-none absolute right-2.5 top-3 h-4 w-4 text-[var(--admin-muted)]" />
+          <ChevronDown className="pointer-events-none absolute right-2.5 top-2.5 h-4 w-4 text-zinc-500" />
         </div>
       </div>
 
       {/* Body: options or preview */}
-      <div className="px-6 pb-4">
+      <div className="px-6 pb-6">
         {isChoiceType
           ? <OptionList type={type} options={(options || []).map((o, i) => ({ id: `o${i}`, ...o }))} onChange={(o) => update({ options: o.map((opt) => ({ label: opt.label, value: opt.value })) })} />
           : <FieldPreview type={type} />
@@ -413,26 +392,28 @@ function FieldCard({ field, onChange, onDelete }: {
       </div>
 
       {/* Bottom bar */}
-      <div className="border-t border-[var(--admin-border)] px-6 py-3">
+      <div className="border-t border-zinc-100 bg-zinc-50 px-6 py-3 dark:border-zinc-800/80 dark:bg-zinc-950">
         <div className="flex flex-wrap items-center gap-4">
-          <label className="flex cursor-pointer items-center gap-2 text-xs text-[var(--admin-muted)]">
-            <span>Repeat per member</span>
+          <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+            <span>Per member</span>
             <button type="button" onClick={() => update({ scope: scope === "member" ? "submission" : "member" })}
-              className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${scope === "member" ? "bg-sky-500" : "bg-[var(--admin-border)]"}`}>
-              <span className={`inline-block h-4 w-4 translate-y-0.5 rounded-full bg-white shadow transition-transform ${scope === "member" ? "translate-x-4" : "translate-x-0.5"}`} />
+              className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${scope === "member" ? "bg-zinc-900 dark:bg-zinc-100" : "bg-zinc-300 dark:bg-zinc-700"}`}>
+              <span className={`inline-block h-4 w-4 translate-y-0.5 rounded-full bg-white shadow transition-transform ${scope === "member" ? "translate-x-4 dark:bg-zinc-900" : "translate-x-0.5"}`} />
             </button>
           </label>
 
-          <div className="ml-auto flex items-center gap-4">
-            <button type="button" onClick={onDelete} className="text-[var(--admin-muted)] hover:text-rose-400">
+          <div className="ml-auto flex items-center gap-6">
+            <button type="button" onClick={onDelete} className="text-zinc-400 hover:text-rose-500 transition-colors" title="Delete Question">
               <Trash2 className="h-4 w-4" />
             </button>
 
-            <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-[var(--admin-muted)]">
+            <div className="h-4 w-px bg-zinc-300 dark:bg-zinc-700" />
+
+            <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
               Required
               <button type="button" onClick={() => update({ required: !required })}
-                className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${required ? "bg-sky-500" : "bg-[var(--admin-border)]"}`}>
-                <span className={`inline-block h-4 w-4 translate-y-0.5 rounded-full bg-white shadow transition-transform ${required ? "translate-x-4" : "translate-x-0.5"}`} />
+                className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${required ? "bg-zinc-900 dark:bg-zinc-100" : "bg-zinc-300 dark:bg-zinc-700"}`}>
+                <span className={`inline-block h-4 w-4 translate-y-0.5 rounded-full bg-white shadow transition-transform ${required ? "translate-x-4 dark:bg-zinc-900" : "translate-x-0.5"}`} />
               </button>
             </label>
           </div>
@@ -488,10 +469,7 @@ function FieldBuilder({ form }: { form: FormWithFields }) {
         type: "text",
         scope: "submission",
         required: false,
-        placeholder: "",
-        helpText: "",
         options: [{ id: "o0", label: "Option 1", value: "option_1" }],
-        validation: {},
       }
     ]);
     setIsDirty(true);
@@ -513,6 +491,7 @@ function FieldBuilder({ form }: { form: FormWithFields }) {
         setToastMsg({ type: "error", message: res.message || "Failed to save." });
       } else {
         setToastMsg({ type: "success", message: "Form fields saved successfully." });
+        setIsDirty(false);
       }
     } catch (e) {
       setToastMsg({ type: "error", message: (e as Error).message || "Failed to save." });
@@ -522,16 +501,16 @@ function FieldBuilder({ form }: { form: FormWithFields }) {
   }
 
   return (
-    <div className="mt-4 space-y-3">
+    <div className="mt-6 space-y-4">
       {toastMsg && (
-        <div className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium ${toastMsg.type === "success" ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"}`}>
+        <div className={`flex items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium ${toastMsg.type === "success" ? "border-emerald-500/30 bg-emerald-50 text-emerald-900 dark:bg-emerald-500/10 dark:text-emerald-100" : "border-rose-500/30 bg-rose-50 text-rose-900 dark:bg-rose-500/10 dark:text-rose-100"}`}>
           {toastMsg.type === "success" ? <CheckCircle2 className="h-4 w-4" /> : <ShieldAlert className="h-4 w-4" />}
           {toastMsg.message}
         </div>
       )}
 
       {isMounted && (
-        <Reorder.Group axis="y" values={fields} onReorder={handleReorder} className="space-y-3">
+        <Reorder.Group axis="y" values={fields} onReorder={handleReorder} className="space-y-4">
           {fields.map((field) => (
             <Reorder.Item key={field.id} value={field}>
               <FieldCard 
@@ -545,36 +524,34 @@ function FieldBuilder({ form }: { form: FormWithFields }) {
       )}
 
       {isMounted && fields.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-[var(--admin-border)] py-12 text-center">
-          <p className="text-sm text-[var(--admin-muted)]">
+        <div className="rounded-xl border-2 border-dashed border-zinc-200 bg-white py-12 text-center dark:border-zinc-800 dark:bg-zinc-900">
+          <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
             No questions yet — click below to add your first
           </p>
         </div>
       )}
 
-      <button
+       <button
         type="button"
         onClick={addQuestion}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[var(--admin-border)] py-4 text-sm font-medium text-[var(--admin-muted)] transition hover:border-sky-500/50 hover:text-sky-400"
+        className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-300 bg-white py-4 text-sm font-semibold text-zinc-600 transition-colors hover:border-zinc-400 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-zinc-500 dark:hover:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-400"
       >
         <Plus className="h-4 w-4" /> Add question
       </button>
 
       {/* Global Save Button */}
-      {isMounted && isDirty && (
-        <div className="sticky bottom-6 z-20 mt-8 flex items-center justify-between rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface)] p-4 shadow-2xl">
-          <p className="pl-2 text-sm text-[var(--admin-muted)]">You have unsaved changes in your fields.</p>
-          <button
-            type="button"
-            onClick={handleBulkSave}
-            disabled={isSaving}
-            className="theme-button flex items-center gap-2 rounded-xl px-8 py-3 text-sm font-bold shadow-xl shadow-[var(--admin-accent)]/20 disabled:opacity-50"
-          >
-            {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
-            {isSaving ? "Saving..." : "Save Form Fields"}
-          </button>
-        </div>
-      )}
+      <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center justify-between rounded-xl border border-zinc-200 bg-white p-3 pr-4 shadow-2xl transition-all duration-300 dark:border-zinc-700 dark:bg-zinc-800 w-[90%] max-w-xl ${isMounted && isDirty ? "translate-y-0 opacity-100" : "translate-y-20 opacity-0 pointer-events-none"}`}>
+        <p className="pl-3 text-sm font-medium text-zinc-600 dark:text-zinc-300">You have unsaved changes.</p>
+        <button
+          type="button"
+          onClick={handleBulkSave}
+          disabled={isSaving}
+          className="flex items-center gap-2 rounded-md bg-zinc-900 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200 dark:focus:ring-zinc-300 dark:focus:ring-offset-zinc-800"
+        >
+          {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+          {isSaving ? "Saving..." : "Save changes"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -593,43 +570,50 @@ export default function AdminRegistrationsManager({ forms, selectedForm, bannerU
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl">
-      {/* Form tabs */}
-      <FormTabsBar
-        forms={forms} selectedId={selectedForm?.id}
-        canCreate={canCreate} onNew={() => setShowCreate(true)}
+    <div className="mx-auto w-full max-w-3xl px-4 sm:px-0 pb-20">
+      {/* Form selector dropdown */}
+      <FormSelectorDropdown
+        items={forms.map((f) => ({
+          id: f.id,
+          title: f.title,
+          href: `/admin/form-builder?form=${f.slug}`,
+          status: f.status,
+          kind: f.kind,
+        }))}
+        selectedId={selectedForm?.id}
+        canCreate={canCreate}
+        onNew={() => setShowCreate(true)}
       />
 
       {selectedForm ? (
-        <div className="mt-4 space-y-0 overflow-hidden rounded-3xl border border-[var(--admin-border)]">
-          {/* Purple accent bar like Google Forms */}
-          <div className={`h-2 w-full ${selectedForm.kind === "competition" ? "bg-gradient-to-r from-sky-500 to-cyan-400" : "bg-gradient-to-r from-violet-500 to-purple-400"}`} />
-
+        <div className="mt-4 flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           {/* Banner */}
           <BannerArea form={selectedForm} bannerUrl={bannerUrl} />
 
-          {/* Form title & kind */}
-          <div className="bg-[var(--admin-surface)] px-6 py-5">
-            <div className="flex items-center justify-between">
+           {/* Form title & kind */}
+          <div className="px-6 py-6 pb-4">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
               <div>
-                <h2 className="text-2xl font-semibold tracking-tight text-[var(--admin-text)]">
+                 <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
                   {selectedForm.title}
                 </h2>
-                <div className="mt-1 flex items-center gap-3">
-                  <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.2em] ${selectedForm.kind === "competition" ? "bg-sky-500/20 text-sky-300" : "bg-violet-500/20 text-violet-300"}`}>
-                    {selectedForm.kind}
+                <div className="mt-2 flex flex-wrap items-center gap-2 sm:gap-3">
+                  <span className="inline-flex items-center rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">
+                     {selectedForm.kind}
                   </span>
-                  <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.2em] ${selectedForm.status === "open" ? "bg-emerald-500/15 text-emerald-300" : selectedForm.status === "draft" ? "bg-amber-500/15 text-amber-300" : "bg-rose-500/15 text-rose-300"}`}>
+                  <span className={`inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${selectedForm.status === "open" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300" : selectedForm.status === "draft" ? "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300" : "bg-rose-100 text-rose-800 dark:bg-rose-500/20 dark:text-rose-300"}`}>
                     {selectedForm.status}
                   </span>
-                  <span className="text-xs text-[var(--admin-muted)]">/{selectedForm.slug}</span>
-                  <a href={`/${selectedForm.slug}`} target="_blank" className="text-sky-400 hover:text-sky-300">
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
+                  <div className="flex items-center gap-1.5 text-sm font-medium text-zinc-500 dark:text-zinc-400">
+                    <span className="hidden sm:inline">/</span>{selectedForm.slug}
+                     <a href={`/${selectedForm.slug}`} target="_blank" className="text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 ml-1 transition-colors" title="View live form">
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  </div>
                 </div>
               </div>
               <Link href={`/admin/registrations?form=${selectedForm.slug}`}
-                className="admin-button-secondary rounded-2xl px-4 py-2 text-sm font-semibold">
+                className="inline-flex items-center justify-center rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:focus:ring-zinc-300 whitespace-nowrap">
                 View responses
               </Link>
             </div>
@@ -639,8 +623,8 @@ export default function AdminRegistrationsManager({ forms, selectedForm, bannerU
           <SettingsPanel form={selectedForm} />
         </div>
       ) : (
-        <div className="mt-4 rounded-2xl border border-[var(--admin-border)] p-8 text-center">
-          <p className="text-sm text-[var(--admin-muted)]">Select a form above to edit it.</p>
+        <div className="mt-4 rounded-xl border border-dashed border-zinc-300 bg-white p-12 text-center dark:border-zinc-700 dark:bg-zinc-900/50">
+          <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Select a form above to edit it.</p>
         </div>
       )}
 

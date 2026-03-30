@@ -307,43 +307,11 @@
                     "default": 0
                 },
                 {
-                    "key": "systemKey",
-                    "type": "string",
-                    "required": false,
-                    "array": false,
-                    "size": 32,
-                    "default": "none"
-                },
-                {
-                    "key": "placeholder",
-                    "type": "string",
-                    "required": false,
-                    "array": false,
-                    "size": 512,
-                    "default": null
-                },
-                {
-                    "key": "helpText",
-                    "type": "string",
-                    "required": false,
-                    "array": false,
-                    "size": 1024,
-                    "default": null
-                },
-                {
                     "key": "optionsJson",
                     "type": "string",
                     "required": false,
                     "array": false,
                     "size": 8192,
-                    "default": null
-                },
-                {
-                    "key": "validationJson",
-                    "type": "string",
-                    "required": false,
-                    "array": false,
-                    "size": 4096,
                     "default": null
                 }
             ],
@@ -370,30 +338,6 @@
                     "required": true,
                     "array": false,
                     "size": 255,
-                    "default": null
-                },
-                {
-                    "key": "primaryName",
-                    "type": "string",
-                    "required": true,
-                    "array": false,
-                    "size": 255,
-                    "default": null
-                },
-                {
-                    "key": "primaryEmail",
-                    "type": "string",
-                    "required": true,
-                    "array": false,
-                    "size": 255,
-                    "default": null
-                },
-                {
-                    "key": "primaryPhone",
-                    "type": "string",
-                    "required": false,
-                    "array": false,
-                    "size": 64,
                     "default": null
                 },
                 {
