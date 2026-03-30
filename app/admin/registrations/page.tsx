@@ -1,4 +1,3 @@
-import AdminDashboardShell from "@/components/admin/AdminDashboardShell";
 import AdminRegistrationSubmissionsPanel from "@/components/admin/AdminRegistrationSubmissionsPanel";
 import {
   getRegistrationFormBySlug,
@@ -35,16 +34,14 @@ export default async function AdminRegistrationsPage({
 
     if (!fallbackForm) {
       return (
-        <AdminDashboardShell>
-          <div className="mx-auto mt-8 max-w-xl rounded-xl border border-dashed border-zinc-300 bg-white p-12 text-center dark:border-zinc-700 dark:bg-zinc-900">
-            <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
-              No registration forms yet.
-            </p>
-            <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-              Go to Form Builder to create your first form.
-            </p>
-          </div>
-        </AdminDashboardShell>
+        <div className="mx-auto mt-8 max-w-xl rounded-xl border border-dashed border-zinc-300 bg-white p-12 text-center dark:border-zinc-700 dark:bg-zinc-900">
+          <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+            No registration forms yet.
+          </p>
+          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+            Go to Form Builder to create your first form.
+          </p>
+        </div>
       );
     }
 
@@ -55,14 +52,12 @@ export default async function AdminRegistrationsPage({
     });
 
     return (
-      <AdminDashboardShell>
-        <AdminRegistrationSubmissionsPanel
-          forms={fallbackForms}
-          form={fallbackForm}
-          submissionPage={submissionPage}
-          selectedSubmission={null}
-        />
-      </AdminDashboardShell>
+      <AdminRegistrationSubmissionsPanel
+        forms={fallbackForms}
+        form={fallbackForm}
+        submissionPage={submissionPage}
+        selectedSubmission={null}
+      />
     );
   }
 
@@ -96,20 +91,18 @@ export default async function AdminRegistrationsPage({
   }
 
   return (
-    <AdminDashboardShell>
-      <AdminRegistrationSubmissionsPanel
-         forms={forms}
-         form={selectedForm}
-         submissionPage={submissionPage}
-         selectedSubmission={
-           selectedSubmission?.formId === selectedForm.id ? selectedSubmission : null
-         }
-         from={from}
-         to={to}
-         pageSize={pageSize}
-         searchField={searchField}
-         searchQuery={searchQuery}
-       />
-    </AdminDashboardShell>
+    <AdminRegistrationSubmissionsPanel
+        forms={forms}
+        form={selectedForm}
+        submissionPage={submissionPage}
+        selectedSubmission={
+          selectedSubmission?.formId === selectedForm.id ? selectedSubmission : null
+        }
+        from={from}
+        to={to}
+        pageSize={pageSize}
+        searchField={searchField}
+        searchQuery={searchQuery}
+      />
   );
 }

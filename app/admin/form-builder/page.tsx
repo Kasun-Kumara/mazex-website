@@ -1,4 +1,3 @@
-import AdminDashboardShell from "@/components/admin/AdminDashboardShell";
 import AdminRegistrationsManager from "@/components/admin/AdminRegistrationsManager";
 import {
   getFormBannerUrl,
@@ -29,12 +28,10 @@ export default async function AdminFormBuilderPage({
     selectedForm?.bannerFileId ? getFormBannerUrl(selectedForm.bannerFileId) : null;
 
   return (
-    <AdminDashboardShell>
-      <AdminRegistrationsManager
-        forms={forms}
-        selectedForm={selectedForm}
-        bannerUrl={bannerUrl}
-      />
-    </AdminDashboardShell>
+    <AdminRegistrationsManager
+      forms={forms}
+      selectedForm={selectedForm}
+      bannerUrl={bannerUrl}
+    />
   );
 }

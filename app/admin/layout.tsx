@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentAdmin } from "@/lib/admin-auth";
 import { isAppwriteConfigured } from "@/lib/appwrite";
 import { ThemeProvider } from "@/components/admin/ThemeProvider";
+import AdminDashboardShell from "@/components/admin/AdminDashboardShell";
 
 export default async function AdminLayout({
   children,
@@ -25,7 +26,9 @@ export default async function AdminLayout({
       enableSystem
       disableTransitionOnChange
     >
-      {children}
+      <AdminDashboardShell>
+        {children}
+      </AdminDashboardShell>
     </ThemeProvider>
   );
 }
