@@ -1060,6 +1060,7 @@ export function coerceFieldValue(
   field: FieldDefinition,
   rawValue: FormDataEntryValue | FormDataEntryValue[] | null,
 ): SubmissionAnswerValue {
+  if (field.type === "page_break") return null;
   if (field.type === "checkbox") {
     if (Array.isArray(rawValue)) return rawValue.map(String);
     return rawValue ? [String(rawValue)] : [];
@@ -1086,6 +1087,7 @@ export function validateFieldValue(
   field: FieldDefinition,
   value: SubmissionAnswerValue,
 ) {
+  if (field.type === "page_break") return null;
   if (field.type === "checkbox") {
     if (field.required && (!Array.isArray(value) || value.length === 0))
       return `Please select at least one option for ${field.label}.`;

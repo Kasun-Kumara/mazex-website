@@ -35,26 +35,26 @@ const noticeCopy: Record<
     message:
       "Admin auth is not configured yet. Add the required environment variables before using this login.",
     className:
-      "border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-amber-900 dark:text-amber-100",
+      "border-amber-500/25 bg-amber-500/10 text-amber-100",
   },
   unauthorized: {
     icon: ShieldAlert,
     message:
       "Your session is missing the required admin access. Sign in again with a verified admin account.",
     className:
-      "border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 text-rose-900 dark:text-rose-100",
+      "border-rose-500/25 bg-rose-500/10 text-rose-100",
   },
   "signed-out": {
     icon: ShieldCheck,
     message: "The admin session has been signed out.",
     className:
-      "border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-900 dark:text-emerald-100",
+      "border-emerald-500/25 bg-emerald-500/10 text-emerald-100",
   },
   "password-updated": {
     icon: ShieldCheck,
     message: "Password changed successfully. Sign in with your new password.",
     className:
-      "border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-900 dark:text-emerald-100",
+      "border-emerald-500/25 bg-emerald-500/10 text-emerald-100",
   },
 };
 
@@ -65,7 +65,7 @@ function SubmitButton({ disabled }: { disabled: boolean }) {
     <button
       type="submit"
       disabled={disabled || pending}
-      className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-900 dark:focus:ring-zinc-300 dark:focus:ring-offset-zinc-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      className="theme-button theme-button-register w-full cursor-pointer rounded-full px-6 py-3.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-none"
     >
       {pending ? "Signing In..." : disabled ? "Configure Admin Auth First" : "Sign In"}
     </button>
@@ -96,17 +96,17 @@ function LoginToastMessage({
 
   return (
     <div
-      className={`fixed top-4 right-4 left-4 z-50 mx-auto flex w-auto max-w-sm items-start gap-3 rounded-lg border px-4 py-3 text-sm shadow-xl sm:right-6 sm:left-auto ${toast.className}`}
+      className={`fixed top-24 right-4 left-4 z-50 mx-auto flex w-auto max-w-sm items-center gap-3 rounded-2xl border px-4 py-3 text-sm shadow-[0_20px_50px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:right-6 sm:left-auto ${toast.className}`}
       role="status"
       aria-live="polite"
     >
-      <toast.icon className="h-5 w-5 shrink-0 mt-0.5" />
-      <p className="flex-1 pr-2 leading-tight">{toast.message}</p>
+      <toast.icon className="h-4.5 w-4.5 shrink-0" />
+      <p className="flex-1 pr-2 leading-5">{toast.message}</p>
       <button
         type="button"
         onClick={onClose}
         aria-label="Close notification"
-        className="flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-md transition hover:bg-black/5 dark:hover:bg-white/10"
+        className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-current/80 transition hover:bg-white/10 hover:text-current"
       >
         <X className="h-4 w-4" />
       </button>
@@ -132,7 +132,7 @@ export default function AdminLoginForm({
         id: `error:${state.toastKey}`,
         icon: ShieldAlert,
         message: state.error,
-        className: "border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 text-rose-900 dark:text-rose-100",
+        className: "border-rose-500/25 bg-rose-500/10 text-rose-100",
       }
     : notice
       ? {
@@ -154,42 +154,38 @@ export default function AdminLoginForm({
         />
       ) : null}
 
-      <form action={formAction} className="space-y-6">
-        <div>
+      <form action={formAction} className="mt-8 space-y-6">
+        <div className="space-y-3">
           <label
             htmlFor="email"
-            className="block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+            className="block text-sm font-medium text-[#E2E8F0]"
           >
             Email address
           </label>
-          <div className="mt-1 relative rounded-md shadow-sm">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Mail className="h-4.5 w-4.5 text-zinc-400 dark:text-zinc-500" />
-            </div>
+          <div className="flex h-[52px] items-center gap-3 rounded-xl border border-[#2a223a] bg-[#060813] px-4 shadow-[inset_0_1px_0_rgba(248,250,252,0.02)] transition focus-within:border-[#8a73a6] focus-within:shadow-[0_0_0_3px_rgba(107,82,143,0.18)]">
+            <Mail className="h-5 w-5 shrink-0 text-[#8a73a6]" />
             <input
               id="email"
               name="email"
               type="email"
               autoComplete="email"
-              placeholder="admin@mazex.org"
+              placeholder="user@knurdz.org"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="block w-full pl-10 sm:text-sm rounded-md h-10 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 dark:focus:ring-zinc-400 dark:focus:border-zinc-400"
+              className="admin-auth-input h-full w-full border-0 bg-transparent text-sm text-[#F8FAFC] outline-none placeholder:text-[#64748B]"
             />
           </div>
         </div>
 
-        <div>
-           <label
+        <div className="space-y-3">
+          <label
             htmlFor="password"
-            className="block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+            className="block text-sm font-medium text-[#E2E8F0]"
           >
             Password
           </label>
-          <div className="mt-1 relative rounded-md shadow-sm">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <LockKeyhole className="h-4.5 w-4.5 text-zinc-400 dark:text-zinc-500" />
-            </div>
+          <div className="flex h-[52px] items-center gap-3 rounded-xl border border-[#2a223a] bg-[#060813] px-4 shadow-[inset_0_1px_0_rgba(248,250,252,0.02)] transition focus-within:border-[#8a73a6] focus-within:shadow-[0_0_0_3px_rgba(107,82,143,0.18)]">
+            <LockKeyhole className="h-5 w-5 shrink-0 text-[#8a73a6]" />
             <input
               id="password"
               name="password"
@@ -198,22 +194,20 @@ export default function AdminLoginForm({
               placeholder="Enter your password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-               className="block w-full pl-10 pr-10 sm:text-sm rounded-md h-10 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 dark:focus:ring-zinc-400 dark:focus:border-zinc-400"
+              className="admin-auth-input h-full w-full border-0 bg-transparent text-sm text-[#F8FAFC] outline-none placeholder:text-[#64748B]"
             />
-             <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-              <button
-                type="button"
-                onClick={() => setShowPassword((current) => !current)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors focus:outline-none"
-              >
-                {showPassword ? (
-                  <EyeOff className="h-4.5 w-4.5" />
-                ) : (
-                  <Eye className="h-4.5 w-4.5" />
-                )}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowPassword((current) => !current)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-[#8a73a6] transition hover:bg-white/5 hover:text-white"
+            >
+              {showPassword ? (
+                <EyeOff className="h-4.5 w-4.5" />
+              ) : (
+                <Eye className="h-4.5 w-4.5" />
+              )}
+            </button>
           </div>
         </div>
 

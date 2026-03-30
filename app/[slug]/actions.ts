@@ -80,8 +80,8 @@ export async function submitRegistrationAction(
   }
 
   const fieldErrors: Record<string, string> = {};
-  const submissionFields = form.fields.filter((f) => f.scope === "submission");
-  const memberFields = form.fields.filter((f) => f.scope === "member");
+  const submissionFields = form.fields.filter((f) => f.scope === "submission" && f.type !== "page_break");
+  const memberFields = form.fields.filter((f) => f.scope === "member" && f.type !== "page_break");
   const answers: Record<string, SubmissionAnswerValue> = {};
 
   for (const field of submissionFields) {

@@ -85,8 +85,8 @@ function SubmissionDetailPanel({
   const labelMap = getFieldLabelMap(form.fields);
 
   return (
-    <div className="w-full bg-white p-6 sm:p-8 dark:bg-zinc-900">
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-zinc-100 pb-6 dark:border-zinc-800/80">
+    <div className="w-full bg-white dark:bg-zinc-900">
+      <div className="sticky top-0 z-10 flex flex-wrap items-start justify-between gap-4 border-b border-zinc-100 bg-white/95 px-6 pb-6 pt-6 backdrop-blur-md sm:px-8 sm:pt-8 dark:border-zinc-800/80 dark:bg-zinc-900/95">
         <div>
            <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
             Submission Detail
@@ -101,7 +101,7 @@ function SubmissionDetailPanel({
 
         <Link
           href={onCloseHref}
-           className="p-2 -m-2 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800"
+           className="-m-2 rounded-full p-2 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
            aria-label="Close"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -110,13 +110,14 @@ function SubmissionDetailPanel({
         </Link>
       </div>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
-        {submission.displaySubtitle && <SummaryItem label="Contact" value={submission.displaySubtitle} />}
-        {submission.teamName && <SummaryItem label="Team name" value={submission.teamName} />}
-        <SummaryItem label="Form" value={submission.formTitle ?? form.title} />
-      </div>
+      <div className="p-6 sm:p-8">
+        <div className="grid gap-4 md:grid-cols-2">
+          {submission.displaySubtitle && <SummaryItem label="Contact" value={submission.displaySubtitle} />}
+          {submission.teamName && <SummaryItem label="Team name" value={submission.teamName} />}
+          <SummaryItem label="Form" value={submission.formTitle ?? form.title} />
+        </div>
 
-      <div className="mt-6 rounded-lg border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="mt-6 rounded-lg border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-950">
         <h4 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
           Submission fields
         </h4>
@@ -159,6 +160,7 @@ function SubmissionDetailPanel({
           ))}
         </div>
       ) : null}
+      </div>
     </div>
   );
 }

@@ -12,7 +12,8 @@ export const REGISTRATION_FIELD_TYPES = [
   "checkbox",
   "date",
   "time",
-  "file"
+  "file",
+  "page_break"
 ] as const;
 
 export type RegistrationFormKind = (typeof REGISTRATION_FORM_KINDS)[number];

@@ -32,10 +32,10 @@ const TYPE_LABELS: Record<FieldType, string> = {
   text: "Short answer", textarea: "Paragraph", email: "Email",
   tel: "Phone", number: "Number", select: "Dropdown",
   radio: "Radio input", checkbox: "Checkbox", date: "Date",
-  time: "Time", file: "File Upload",
+  time: "Time", file: "File Upload", page_break: "Page Break"
 };
 
-const ALL_TYPES = Object.keys(TYPE_LABELS) as FieldType[];
+const ALL_TYPES = Object.keys(TYPE_LABELS).filter(t => t !== "page_break") as FieldType[];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
@@ -339,6 +339,16 @@ function FieldPreview({ type }: { type: FieldType }) {
     );
   }
 
+  if (type === "page_break") {
+    return (
+      <div className="mt-4 flex items-center gap-4">
+        <div className="flex-1 h-px border-t border-dashed border-zinc-300 dark:border-zinc-700"></div>
+        <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 bg-zinc-50 px-2 dark:bg-zinc-900">Page Break</span>
+        <div className="flex-1 h-px border-t border-dashed border-zinc-300 dark:border-zinc-700"></div>
+      </div>
+    );
+  }
+
   return null;
 }
 
@@ -364,24 +374,26 @@ function FieldCard({ field, onChange, onDelete }: {
       </div>
 
       {/* Question row */}
-      <div className="flex flex-col sm:flex-row items-start gap-4 px-6 pt-2 pb-4">
-        <input value={label} onChange={e => {
-            const newLabel = e.target.value;
-            const newKey = newLabel.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "field";
-            update({ label: newLabel, key: newKey });
-          }}
-          className="flex-1 w-full border-0 border-b-2 border-zinc-100 bg-transparent px-0 pb-2 text-base font-medium text-zinc-900 focus:border-zinc-900 focus:ring-0 dark:border-zinc-800 dark:text-zinc-50 dark:focus:border-zinc-400"
-          placeholder="Untitled question" />
+      {type !== "page_break" && (
+        <div className="flex flex-col sm:flex-row items-start gap-4 px-6 pt-2 pb-4">
+          <input value={label} onChange={e => {
+              const newLabel = e.target.value;
+              const newKey = newLabel.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "field";
+              update({ label: newLabel, key: newKey });
+            }}
+            className="flex-1 w-full border-0 border-b-2 border-zinc-100 bg-transparent px-0 pb-2 text-base font-medium text-zinc-900 focus:border-zinc-900 focus:ring-0 dark:border-zinc-800 dark:text-zinc-50 dark:focus:border-zinc-400"
+            placeholder="Untitled question" />
 
-        {/* Type selector */}
-        <div className="relative shrink-0 w-full sm:w-48 mt-2 sm:mt-0">
-          <select value={type} onChange={e => update({ type: e.target.value as FieldType })}
-            className="block w-full appearance-none rounded-md border border-zinc-300 bg-white py-2 pl-3 pr-8 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 dark:focus:border-zinc-400 dark:focus:ring-zinc-400">
-            {ALL_TYPES.map(t => <option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-2.5 top-2.5 h-4 w-4 text-zinc-500" />
+          {/* Type selector */}
+          <div className="relative shrink-0 w-full sm:w-48 mt-2 sm:mt-0">
+            <select value={type} onChange={e => update({ type: e.target.value as FieldType })}
+              className="block w-full appearance-none rounded-md border border-zinc-300 bg-white py-2 pl-3 pr-8 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 dark:focus:border-zinc-400 dark:focus:ring-zinc-400">
+              {ALL_TYPES.map(t => <option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2.5 top-2.5 h-4 w-4 text-zinc-500" />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Body: options or preview */}
       <div className="px-6 pb-6">
@@ -394,28 +406,34 @@ function FieldCard({ field, onChange, onDelete }: {
       {/* Bottom bar */}
       <div className="border-t border-zinc-100 bg-zinc-50 px-6 py-3 dark:border-zinc-800/80 dark:bg-zinc-950">
         <div className="flex flex-wrap items-center gap-4">
-          <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-            <span>Per member</span>
-            <button type="button" onClick={() => update({ scope: scope === "member" ? "submission" : "member" })}
-              className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${scope === "member" ? "bg-zinc-900 dark:bg-zinc-100" : "bg-zinc-300 dark:bg-zinc-700"}`}>
-              <span className={`inline-block h-4 w-4 translate-y-0.5 rounded-full bg-white shadow transition-transform ${scope === "member" ? "translate-x-4 dark:bg-zinc-900" : "translate-x-0.5"}`} />
-            </button>
-          </label>
+          <div className={type === "page_break" ? "hidden" : "block"}>
+            <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              <span>Per member</span>
+              <button type="button" onClick={() => update({ scope: scope === "member" ? "submission" : "member" })}
+                className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${scope === "member" ? "bg-zinc-900 dark:bg-zinc-100" : "bg-zinc-300 dark:bg-zinc-700"}`}>
+                <span className={`inline-block h-4 w-4 translate-y-0.5 rounded-full bg-white shadow transition-transform ${scope === "member" ? "translate-x-4 dark:bg-zinc-900" : "translate-x-0.5"}`} />
+              </button>
+            </label>
+          </div>
 
           <div className="ml-auto flex items-center gap-6">
-            <button type="button" onClick={onDelete} className="text-zinc-400 hover:text-rose-500 transition-colors" title="Delete Question">
+            <button type="button" onClick={onDelete} className="text-zinc-400 hover:text-rose-500 transition-colors" title={type === "page_break" ? "Delete Page Break" : "Delete Question"}>
               <Trash2 className="h-4 w-4" />
             </button>
 
-            <div className="h-4 w-px bg-zinc-300 dark:bg-zinc-700" />
+            {type !== "page_break" && (
+              <>
+                <div className="h-4 w-px bg-zinc-300 dark:bg-zinc-700" />
 
-            <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-              Required
-              <button type="button" onClick={() => update({ required: !required })}
-                className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${required ? "bg-zinc-900 dark:bg-zinc-100" : "bg-zinc-300 dark:bg-zinc-700"}`}>
-                <span className={`inline-block h-4 w-4 translate-y-0.5 rounded-full bg-white shadow transition-transform ${required ? "translate-x-4 dark:bg-zinc-900" : "translate-x-0.5"}`} />
-              </button>
-            </label>
+                <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                  Required
+                  <button type="button" onClick={() => update({ required: !required })}
+                    className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${required ? "bg-zinc-900 dark:bg-zinc-100" : "bg-zinc-300 dark:bg-zinc-700"}`}>
+                    <span className={`inline-block h-4 w-4 translate-y-0.5 rounded-full bg-white shadow transition-transform ${required ? "translate-x-4 dark:bg-zinc-900" : "translate-x-0.5"}`} />
+                  </button>
+                </label>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -470,6 +488,24 @@ function FieldBuilder({ form }: { form: FormWithFields }) {
         scope: "submission",
         required: false,
         options: [{ id: "o0", label: "Option 1", value: "option_1" }],
+      }
+    ]);
+    setIsDirty(true);
+  }
+
+  function addPageBreak() {
+    setFields((prev) => [
+      ...prev,
+      {
+        id: `draft-${Date.now()}`,
+        formId: form.id,
+        sortOrder: prev.length,
+        label: "Page Break",
+        key: `page_break_${Date.now()}`,
+        type: "page_break",
+        scope: "submission",
+        required: false,
+        options: [],
       }
     ]);
     setIsDirty(true);
@@ -531,16 +567,25 @@ function FieldBuilder({ form }: { form: FormWithFields }) {
         </div>
       )}
 
-       <button
-        type="button"
-        onClick={addQuestion}
-        className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-300 bg-white py-4 text-sm font-semibold text-zinc-600 transition-colors hover:border-zinc-400 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-zinc-500 dark:hover:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-400"
-      >
-        <Plus className="h-4 w-4" /> Add question
-      </button>
+       <div className="flex flex-col sm:flex-row gap-4">
+         <button
+          type="button"
+          onClick={addQuestion}
+          className="flex w-full flex-1 items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-300 bg-white py-4 text-sm font-semibold text-zinc-600 transition-colors hover:border-zinc-400 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-zinc-500 dark:hover:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-400"
+        >
+          <Plus className="h-4 w-4" /> Add question
+        </button>
+        <button
+          type="button"
+          onClick={addPageBreak}
+          className="flex w-full flex-1 items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-300 bg-white py-4 text-sm font-semibold text-zinc-600 transition-colors hover:border-zinc-400 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-zinc-500 dark:hover:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-400"
+        >
+          <Plus className="h-4 w-4" /> Add page break
+        </button>
+       </div>
 
       {/* Global Save Button */}
-      <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center justify-between rounded-xl border border-zinc-200 bg-white p-3 pr-4 shadow-2xl transition-all duration-300 dark:border-zinc-700 dark:bg-zinc-800 w-[90%] max-w-xl ${isMounted && isDirty ? "translate-y-0 opacity-100" : "translate-y-20 opacity-0 pointer-events-none"}`}>
+      <div className={`sticky bottom-6 z-20 mx-auto flex items-center justify-between rounded-xl border border-zinc-200 bg-white p-3 pr-4 shadow-2xl transition-all duration-300 dark:border-zinc-700 dark:bg-zinc-800 w-[90%] max-w-xl ${isMounted && isDirty ? "translate-y-0 opacity-100" : "translate-y-20 opacity-0 pointer-events-none"}`}>
         <p className="pl-3 text-sm font-medium text-zinc-600 dark:text-zinc-300">You have unsaved changes.</p>
         <button
           type="button"

@@ -51,7 +51,8 @@ function FieldHint({ error }: { error?: string }) {
   );
 }
 
-import { Check, ChevronDown, UploadCloud, File } from "lucide-react";
+import { Check, ChevronDown, UploadCloud, File, AlertCircle } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 
 function ChoiceField({
   field,
@@ -304,16 +305,28 @@ export default function PublicRegistrationForm({
 }) {
   const [state, setState] = useState(initialState);
   const [memberCount, setMemberCount] = useState(form.teamMinMembers);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const formAction = async (formData: FormData) => {
     const result = await submitRegistrationAction(state, formData);
     setState(result);
   };
 
-  const submissionFields = useMemo(
-    () => form.fields.filter((f) => f.scope === "submission"),
-    [form.fields],
-  );
+  const pages = useMemo(() => {
+    const p: FieldDefinition[][] = [[]];
+    for (const f of form.fields.filter(f => f.scope === "submission")) {
+      if (f.type === "page_break") {
+        p.push([]);
+      } else {
+        p[p.length - 1].push(f);
+      }
+    }
+    return p;
+  }, [form.fields]);
+
+  const totalPages = pages.length;
+
   const memberFields = useMemo(
     () => form.fields.filter((f) => f.scope === "member"),
     [form.fields],
@@ -323,10 +336,80 @@ export default function PublicRegistrationForm({
     [memberCount],
   );
 
+  useEffect(() => {
+    if (state.status === "error" && Object.keys(state.fieldErrors).length > 0) {
+      let errorPage = 0;
+      for (let i = 0; i < pages.length; i++) {
+        const hasError = pages[i].some((f) => state.fieldErrors[`submission__${f.key}`]);
+        if (hasError) {
+          errorPage = i;
+          break;
+        }
+      }
+      if (errorPage === 0 && memberFields.length > 0) {
+        const hasMemberError = Object.keys(state.fieldErrors).some(
+          (k) => k.startsWith("member__") || k === "memberCount",
+        );
+        if (hasMemberError) errorPage = totalPages - 1;
+      }
+      setCurrentPage(errorPage);
+    }
+  }, [state, pages, memberFields, totalPages]);
+
+  const handleNext = () => {
+    const formEl = document.getElementById("registration-form") as HTMLFormElement;
+    if (formEl) {
+      let hasError = false;
+      const currentFields = pages[currentPage];
+      for (const f of currentFields) {
+        if (!f.required) continue;
+        const name = `submission__${f.key}`;
+
+        if (f.type === "checkbox") {
+          const checks = formEl.querySelectorAll(`input[name="${name}"]:checked`);
+          if (checks.length === 0) hasError = true;
+        } else if (f.type === "radio") {
+          const checks = formEl.querySelectorAll(`input[name="${name}"]:checked`);
+          if (checks.length === 0) hasError = true;
+        } else if (f.type === "file") {
+          const input = formEl.elements.namedItem(name) as HTMLInputElement;
+          const previouslyUploaded = state.fields?.[name]; // Has a previous valid file? (Appwrite doesn't pass back file inputs in state, so we just check input)
+          if (!input || !input.files?.length) {
+            // Note: client side state retention for files gets tricky, so this simple check suffices for new submissions
+            hasError = true;
+          }
+        } else {
+          const input = formEl.elements.namedItem(name) as HTMLInputElement | null;
+          // In React, controlled inputs or defaultValues are accessible via formEl.elements
+          // But to be safe, also check if there's a file attached if it's a file
+          if (!input || !input.value.trim()) hasError = true;
+        }
+      }
+
+      if (hasError) {
+        setValidationError("Please complete all required fields on this page before proceeding.");
+        setTimeout(() => setValidationError(null), 5000);
+        return;
+      }
+      setValidationError(null);
+    }
+
+    setCurrentPage((p) => Math.min(totalPages - 1, p + 1));
+    setTimeout(() => {
+      document.getElementById("registration-form-top")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 10);
+  };
+
+  const handlePrev = () => {
+    setCurrentPage((p) => Math.max(0, p - 1));
+    setTimeout(() => {
+      document.getElementById("registration-form-top")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 10);
+  };
+
   if (state.status === "success") {
     return (
       <div className="relative flex flex-col items-center justify-center overflow-hidden p-12 py-24 text-center sm:p-16">
-        {/* Soft glowing background effect purely for the success state */}
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <div className="h-[300px] w-[300px] rounded-full bg-emerald-500/10 blur-[100px]" />
         </div>
@@ -361,9 +444,42 @@ export default function PublicRegistrationForm({
     );
   }
 
+  const isFormEmpty = pages[0].length === 0 && !availability.isAcceptingSubmissions;
+
   return (
-    <div className="p-6 sm:p-10 lg:p-12">
-      <form action={formAction} className="space-y-10" noValidate>
+    <div className="p-6 sm:p-10 lg:p-12 relative">
+      <AnimatePresence>
+        {validationError && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, x: "-50%" }}
+            animate={{ opacity: 1, y: 0, x: "-50%" }}
+            exit={{ opacity: 0, y: 20, x: "-50%" }}
+            className="fixed bottom-6 left-1/2 z-[9999] flex w-[90%] max-w-sm items-center gap-3 rounded-2xl border border-rose-500/30 bg-[#1e0f15]/80 p-4 px-5 text-sm font-medium text-rose-200 shadow-2xl shadow-rose-900/20 backdrop-blur-xl sm:bottom-10"
+          >
+            <AlertCircle className="h-5 w-5 shrink-0 text-rose-400" />
+            <p className="flex-1 leading-snug">{validationError}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div id="registration-form-top" className="pointer-events-none h-0 w-0" />
+
+      {totalPages > 1 && !isFormEmpty && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-widest text-slate-400">
+            <span>Step {currentPage + 1} of {totalPages}</span>
+            <span>{Math.round(((currentPage + 1) / totalPages) * 100)}%</span>
+          </div>
+          <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/5">
+            <div
+              className="h-full bg-emerald-400 transition-all duration-500 ease-out"
+              style={{ width: `${((currentPage + 1) / totalPages) * 100}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      <form action={formAction} className="space-y-10" noValidate id="registration-form">
         <input type="hidden" name="slug" value={slug} />
 
         {state.status === "error" && state.message && (
@@ -372,7 +488,7 @@ export default function PublicRegistrationForm({
           </div>
         )}
 
-        {submissionFields.length === 0 && !availability.isAcceptingSubmissions ? (
+        {isFormEmpty ? (
           <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-6 py-8 text-center backdrop-blur-sm">
             <p className="text-lg font-semibold text-amber-200">{availability.label}</p>
             {availability.description && (
@@ -382,24 +498,30 @@ export default function PublicRegistrationForm({
         ) : (
           <>
             <div className="flex flex-col gap-y-7">
-              {submissionFields.map((field) => {
-                const name = `submission__${field.key}`;
-                return (
-                  <div key={field.id}>
-                    <RenderField
-                      field={field}
-                      name={name}
-                      error={state.fieldErrors[name]}
-                      defaultValue={state.fields?.[name]}
-                    />
+              {pages.map((pageFields, pageIndex) => (
+                <div key={`page-${pageIndex}`} className={pageIndex === currentPage ? "block" : "hidden"}>
+                  <div className="flex flex-col gap-y-7">
+                    {pageFields.map((field) => {
+                      const name = `submission__${field.key}`;
+                      return (
+                        <div key={field.id}>
+                          <RenderField
+                            field={field}
+                            name={name}
+                            error={state.fieldErrors[name]}
+                            defaultValue={state.fields?.[name]}
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
 
-            {memberFields.length > 0 && (
-              <div className="relative overflow-hidden rounded-[2rem] border border-white/5 bg-white/[0.015] p-6 shadow-inner sm:p-8">
-                {/* Subtle soft glow in the container */}
+            {/* Team Details on the last page */}
+            {memberFields.length > 0 && currentPage === totalPages - 1 && (
+              <div className="relative overflow-hidden rounded-[2rem] border border-white/5 bg-white/[0.015] p-6 shadow-inner sm:p-8 mt-10">
                 <div className="absolute left-1/4 top-0 h-96 w-96 -translate-y-1/2 rounded-full bg-white/5 opacity-40 blur-3xl" />
                 
                 <div className="relative flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
@@ -480,9 +602,30 @@ export default function PublicRegistrationForm({
               </div>
             )}
 
-            <div className="pt-4">
-              <div className="flex flex-col items-center justify-between gap-5 sm:flex-row sm:gap-6">
-                <SubmitButton disabled={!availability.isAcceptingSubmissions} />
+            <div className="pt-8">
+              <div className="flex flex-col items-center justify-between gap-5 sm:flex-row sm:gap-6 border-t border-white/10 pt-8">
+                <div className="flex items-center gap-4 w-full sm:w-auto">
+                  {currentPage > 0 && (
+                    <button
+                      type="button"
+                      onClick={handlePrev}
+                      className="inline-flex w-full items-center justify-center rounded-full border border-white/10 bg-white/[0.03] px-8 py-3.5 text-[15px] font-semibold tracking-wide text-white transition-all hover:bg-white/[0.08] sm:w-auto"
+                    >
+                      Previous
+                    </button>
+                  )}
+                  {currentPage < totalPages - 1 ? (
+                    <button
+                      type="button"
+                      onClick={handleNext}
+                      className="theme-button inline-flex w-full items-center justify-center rounded-full px-8 py-3.5 text-[15px] font-semibold tracking-wide shadow-[0_0_20px_rgba(107,82,143,0.4)] transition-all hover:scale-105 sm:w-auto"
+                    >
+                      Next Step
+                    </button>
+                  ) : (
+                    <SubmitButton disabled={!availability.isAcceptingSubmissions} />
+                  )}
+                </div>
                 {!availability.isAcceptingSubmissions && (
                   <p className="text-sm font-medium text-amber-300">
                     This form is currently {availability.label.toLowerCase()}.

@@ -63,7 +63,7 @@ export function OptimisticSubmissionDrawer() {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="absolute bottom-0 w-full z-[60] bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 rounded-t-2xl shadow-[0_-20px_40px_-20px_rgba(0,0,0,0.1)] flex flex-col h-[60vh] overflow-hidden items-center justify-center pointer-events-auto"
+            className="absolute bottom-0 w-full z-[60] bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 rounded-t-2xl shadow-[0_-20px_40px_-20px_rgba(0,0,0,0.1)] flex flex-col h-[95vh] max-h-[95vh] overflow-hidden items-center justify-center pointer-events-auto"
           >
              <Loader2 className="h-8 w-8 animate-spin text-zinc-400 dark:text-zinc-600 mb-4" />
              <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 animate-pulse">
