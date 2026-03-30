@@ -84,7 +84,7 @@ export default function AdminDashboardShell({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className={cn("hidden lg:inline-flex p-1 text-zinc-500 hover:bg-purple-100 hover:text-purple-700 dark:text-zinc-400 dark:hover:bg-purple-950/60 dark:hover:text-purple-400 rounded-md transition-colors", sidebarCollapsed ? "" : "-mr-2")}
+              className={cn("hidden lg:inline-flex p-1 text-zinc-500 hover:bg-purple-100 hover:text-purple-600 dark:text-zinc-400 dark:hover:bg-purple-500/10 dark:hover:text-purple-200 rounded-md transition-colors", sidebarCollapsed ? "" : "-mr-2")}
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
               title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
@@ -96,7 +96,7 @@ export default function AdminDashboardShell({
             </button>
             <button
               onClick={() => setMobileSidebarOpen(false)}
-              className="lg:hidden p-1 -mr-2 text-zinc-500 hover:bg-purple-100 hover:text-purple-700 dark:text-zinc-400 dark:hover:bg-purple-950/60 dark:hover:text-purple-400 rounded-md"
+              className="lg:hidden p-1 -mr-2 text-zinc-500 hover:bg-purple-100 hover:text-purple-600 dark:text-zinc-400 dark:hover:bg-purple-500/10 dark:hover:text-purple-200 rounded-md"
               aria-label="Close mobile sidebar"
             >
               <X className="h-5 w-5" />
@@ -130,8 +130,8 @@ export default function AdminDashboardShell({
                   className={cn(
                     "flex items-center gap-4 rounded-lg px-4 py-2 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-purple-600 dark:focus-visible:ring-purple-900",
                     isActive
-                      ? "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-400 font-bold shadow-sm"
-                      : "text-zinc-600 hover:bg-purple-50 hover:text-purple-700 dark:text-zinc-400 dark:hover:bg-purple-950/40 dark:hover:text-purple-400",
+                      ? "bg-purple-100 text-purple-600 dark:bg-purple-500/10 dark:text-purple-200 font-semibold shadow-sm"
+                      : "text-zinc-600 hover:bg-purple-100/50 hover:text-purple-600 dark:text-zinc-400 dark:hover:bg-purple-500/5 dark:hover:text-purple-200",
                     sidebarCollapsed && "lg:justify-center lg:px-0"
                   )}
                   onClick={() => setMobileSidebarOpen(false)}
@@ -156,7 +156,7 @@ export default function AdminDashboardShell({
             <button
               type="submit"
               className={cn(
-                "flex w-full items-center gap-2 rounded-md bg-purple-600/10 dark:bg-purple-500/10 px-3 py-2.5 text-sm font-medium text-purple-700 dark:text-purple-400 transition-colors hover:bg-purple-600/20 dark:hover:bg-purple-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-600 dark:focus-visible:ring-purple-900",
+                "flex w-full items-center gap-2 rounded-md bg-purple-100/50 dark:bg-purple-500/10 px-3 py-2.5 text-sm font-medium text-purple-600 dark:text-purple-300 transition-colors hover:bg-purple-100 dark:hover:bg-purple-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 dark:focus-visible:ring-purple-900",
                 sidebarCollapsed ? "justify-center" : "justify-center"
               )}
               title={sidebarCollapsed ? "Sign out" : undefined}
@@ -182,7 +182,7 @@ export default function AdminDashboardShell({
           <header className="sticky top-0 z-30 flex shrink-0 h-16 items-center border-b border-zinc-200 dark:border-zinc-800 bg-white px-4 dark:bg-zinc-950 lg:hidden">
             <button
               type="button"
-              className="p-2 -ml-2 text-zinc-600 hover:bg-purple-100 hover:text-purple-700 dark:text-zinc-400 dark:hover:bg-purple-950/60 dark:hover:text-purple-400 rounded-md"
+              className="p-2 -ml-2 text-zinc-600 hover:bg-purple-100 hover:text-purple-600 dark:text-zinc-400 dark:hover:bg-purple-500/10 dark:hover:text-purple-200 rounded-md"
               onClick={() => setMobileSidebarOpen(true)}
               aria-label="Open sidebar"
             >
