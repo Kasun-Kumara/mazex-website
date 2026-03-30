@@ -1,22 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { PAST_EVENTS } from "@/lib/constants";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 
-const containerVariants = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.1 } },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 30 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
-};
-
 export default function PastEvents() {
+  const [activeSlide, setActiveSlide] = useState(0);
   const [selectedEventIndex, setSelectedEventIndex] = useState<number | null>(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [mounted, setMounted] = useState(false);
@@ -35,76 +26,215 @@ export default function PastEvents() {
 
   const selectedEvent = selectedEventIndex !== null ? PAST_EVENTS[selectedEventIndex] : null;
 
+  const goToSlide = useCallback((index: number) => {
+    if (index < 0) index = PAST_EVENTS.length - 1;
+    if (index >= PAST_EVENTS.length) index = 0;
+    setActiveSlide(index);
+  }, []);
+
+  // Keyboard nav
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (selectedEventIndex !== null) return;
+      if (e.key === "ArrowLeft") goToSlide(activeSlide - 1);
+      if (e.key === "ArrowRight") goToSlide(activeSlide + 1);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeSlide, goToSlide, selectedEventIndex]);
+
+  const getSlideStyle = (index: number) => {
+    const diff = index - activeSlide;
+
+    if (diff === 0) {
+      return {
+        zIndex: 30,
+        x: 0,
+        scale: 1,
+        rotateY: 0,
+        opacity: 1,
+        filter: "brightness(1)",
+      };
+    }
+
+    if (diff === 1 || (diff === -(PAST_EVENTS.length - 1))) {
+      return {
+        zIndex: 20,
+        x: "35%",
+        scale: 0.78,
+        rotateY: -12,
+        opacity: 0.7,
+        filter: "brightness(0.55)",
+      };
+    }
+
+    if (diff === -1 || (diff === (PAST_EVENTS.length - 1))) {
+      return {
+        zIndex: 20,
+        x: "-35%",
+        scale: 0.78,
+        rotateY: 12,
+        opacity: 0.7,
+        filter: "brightness(0.55)",
+      };
+    }
+
+    return {
+      zIndex: 10,
+      x: diff > 0 ? "60%" : "-60%",
+      scale: 0.6,
+      rotateY: diff > 0 ? -20 : 20,
+      opacity: 0,
+      filter: "brightness(0.3)",
+    };
+  };
+
+
   return (
-    <section className="theme-section-alt relative py-24 sm:py-32">
+    <section className="theme-section-alt relative py-24 sm:py-32 overflow-hidden">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        {/* Heading */}
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="mb-16 text-center"
+          className="mb-6 text-center"
         >
           <h2 className="text-3xl font-bold text-[#F8FAFC] sm:text-4xl lg:text-5xl">
-            What We&apos;ve Done Before
+            Our previous events
           </h2>
         </motion.div>
 
+        {/* Dynamic Event Title */}
         <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
-          className="grid grid-cols-1 gap-6 md:grid-cols-3"
+          transition={{ duration: 0.4, delay: 0.2 }}
+          className="mb-14 text-center"
         >
-          {PAST_EVENTS.map((event, i) => (
-            <motion.div
-              key={i}
-              variants={itemVariants}
-              whileHover="hover"
-              onClick={() => {
-                setSelectedEventIndex(i);
-                setActiveImageIndex(0);
-              }}
-              className="group relative h-[320px] cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-[#161B22]"
+          <AnimatePresence mode="wait">
+            <motion.p
+              key={activeSlide}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.35, ease: "easeOut" }}
+              className="text-lg sm:text-xl font-semibold text-[#8a73a6]"
             >
-              {/* Background Image */}
-              <div className="absolute inset-0 z-0">
-                <img
-                  src={event.images[0]}
-                  alt={event.title}
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent" />
-              </div>
+              {PAST_EVENTS[activeSlide].title}
+            </motion.p>
+          </AnimatePresence>
+        </motion.div>
 
-              {/* Content Overlay */}
-              <div className="absolute inset-x-0 bottom-0 z-10 p-6 pt-16">
-                <div className="absolute inset-0 z-[-1] bg-gradient-to-t from-black/95 via-black/80 to-transparent transition-opacity duration-300 group-hover:opacity-100" />
-                
-                <h3 className="mb-2 text-xl font-bold tracking-tight text-white transition-transform duration-300 group-hover:-translate-y-1">
-                  {event.title}
-                </h3>
-                
+        {/* Carousel */}
+        <motion.div
+          initial={{ opacity: 0, y: 50 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.7, delay: 0.15 }}
+          className="relative mx-auto"
+          style={{ perspective: "1200px" }}
+        >
+          {/* Carousel Container */}
+          <div className="relative mx-auto h-[150px] sm:h-[220px] md:h-[280px] lg:h-[320px] max-w-2xl">
+            {PAST_EVENTS.map((event, i) => {
+              const style = getSlideStyle(i);
+              const isActive = i === activeSlide;
+
+              return (
                 <motion.div
-                  initial={{ opacity: 0, y: 10, height: 0 }}
-                  variants={{
-                    hover: { 
-                      opacity: 1, 
-                      y: 0,
-                      height: "auto",
-                      transition: { duration: 0.4, ease: [0.23, 1, 0.32, 1] }
+                  key={i}
+                  animate={{
+                    x: style.x,
+                    scale: style.scale,
+                    rotateY: style.rotateY,
+                    opacity: style.opacity,
+                    zIndex: style.zIndex,
+                  }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 260,
+                    damping: 30,
+                    mass: 0.8,
+                  }}
+                  onClick={() => {
+                    if (isActive) {
+                      setSelectedEventIndex(i);
+                      setActiveImageIndex(0);
+                    } else {
+                      goToSlide(i);
                     }
                   }}
-                  className="overflow-hidden"
+                  className="absolute inset-0 mx-auto cursor-pointer"
+                  style={{
+                    transformStyle: "preserve-3d",
+                    filter: style.filter,
+                  }}
                 >
-                  <p className="text-sm leading-relaxed text-gray-300/90">
-                    {event.description}
-                  </p>
+                  <div
+                    className={`relative h-full w-full overflow-hidden rounded-2xl border transition-all duration-300 ${
+                      isActive
+                        ? "border-[#6b528f]/40 shadow-2xl shadow-purple-900/20"
+                        : "border-white/5"
+                    }`}
+                  >
+                    {/* Image */}
+                    <img
+                      src={event.images[0]}
+                      alt={event.title}
+                      className="h-full w-full object-cover"
+                      draggable={false}
+                    />
+
+                    {/* Subtle gradient for depth, no text overlay */}
+                    <div className="absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
+
+                    {/* Simple Click Indicator Icon for active slide */}
+                    {isActive && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="absolute bottom-4 right-4 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white"
+                      >
+                        <ChevronRight size={16} />
+                      </motion.div>
+                    )}
+
+                    {/* Subtle shimmer overlay on sides */}
+                    {!isActive && (
+                      <div className="absolute inset-0 bg-black/20" />
+                    )}
+                  </div>
                 </motion.div>
-              </div>
-            </motion.div>
-          ))}
+              );
+            })}
+          </div>
+        </motion.div>
+
+        {/* Scrollbar & Dots */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+          className="mt-10 flex flex-col items-center gap-5"
+        >
+          <div className="flex gap-3">
+            {PAST_EVENTS.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => goToSlide(i)}
+                className={`rounded-full transition-all duration-300 ${
+                  i === activeSlide
+                    ? "h-3 w-8 bg-[#8a73a6] shadow-lg shadow-purple-500/30"
+                    : "h-3 w-3 bg-white/20 hover:bg-white/40"
+                }`}
+                aria-label={`Go to event ${i + 1}`}
+              />
+            ))}
+          </div>
         </motion.div>
       </div>
 
@@ -116,82 +246,120 @@ export default function PastEvents() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/98 p-4 backdrop-blur-md sm:p-8"
+              className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/98 p-4 backdrop-blur-md overflow-y-auto no-scrollbar"
             >
               {/* Close Button */}
               <button
                 onClick={() => setSelectedEventIndex(null)}
-                className="absolute top-6 right-6 z-[10000] rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20"
+                className="fixed top-6 right-6 z-[10000] rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20 backdrop-blur-sm border border-white/10"
               >
                 <X size={24} />
               </button>
 
-              {/* Main Image View */}
-              <div className="relative flex h-full max-h-[75vh] w-full max-w-6xl items-center justify-center pt-10">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setActiveImageIndex((prev) => (prev > 0 ? prev - 1 : selectedEvent.images.length - 1));
-                  }}
-                  className="absolute left-0 z-[10000] rounded-full bg-white/5 p-3 text-white transition-all hover:bg-white/10 hover:scale-110 md:-left-20"
-                >
-                  <ChevronLeft size={36} />
-                </button>
-
-                <motion.div 
-                  key={activeImageIndex}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                  className="aspect-video w-full overflow-hidden rounded-2xl shadow-2xl shadow-black/50"
-                >
-                  <img
-                    src={selectedEvent.images[activeImageIndex]}
-                    alt={`${selectedEvent.title} - ${activeImageIndex + 1}`}
-                    className="h-full w-full object-cover"
-                  />
-                </motion.div>
-
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setActiveImageIndex((prev) => (prev < selectedEvent.images.length - 1 ? prev + 1 : 0));
-                  }}
-                  className="absolute right-0 z-[10000] rounded-full bg-white/5 p-3 text-white transition-all hover:bg-white/10 hover:scale-110 md:-right-20"
-                >
-                  <ChevronRight size={36} />
-                </button>
-              </div>
-
-              {/* Info & Thumbnails */}
-              <div className="mt-10 flex w-full max-w-5xl flex-col items-center gap-8">
-                <div className="text-center">
-                  <h3 className="text-3xl font-bold text-white mb-2 tracking-tight">{selectedEvent.title}</h3>
-                  <p className="max-w-3xl text-sm leading-relaxed text-gray-400">{selectedEvent.description}</p>
+              <div className="flex flex-col items-center w-full max-w-5xl py-4 sm:py-6">
+                {/* Info Header */}
+                <div className="mb-4 text-center px-4">
+                  <motion.h3
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-2xl sm:text-3xl font-bold text-white mb-2 tracking-tight"
+                  >
+                    {selectedEvent.title}
+                  </motion.h3>
+                  <motion.p
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.1 }}
+                    className="max-w-2xl mx-auto text-xs sm:text-sm leading-relaxed text-gray-400 line-clamp-2"
+                  >
+                    {selectedEvent.description}
+                  </motion.p>
                 </div>
 
-                {/* Thumbnails */}
-                <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar max-w-full px-4">
-                  {selectedEvent.images.map((img, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setActiveImageIndex(idx)}
-                      className={`relative h-20 w-32 flex-shrink-0 overflow-hidden rounded-xl border-2 transition-all duration-300 ${
-                        activeImageIndex === idx 
-                          ? "border-blue-500 scale-110 shadow-lg shadow-blue-500/20" 
-                          : "border-transparent opacity-40 hover:opacity-100 hover:scale-105"
-                      }`}
-                    >
-                      <img src={img} className="h-full w-full object-cover" alt="" />
-                    </button>
-                  ))}
+                {/* Main Image View */}
+                <div className="relative flex w-full items-center justify-center mb-6 gap-4 px-10">
+                  {/* Desktop Nav Arrows */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveImageIndex((prev) => (prev > 0 ? prev - 1 : selectedEvent.images.length - 1));
+                    }}
+                    className="hidden sm:flex absolute left-0 lg:-left-6 z-[10000] rounded-full bg-white/10 p-2.5 text-white transition-all hover:bg-white/20 hover:scale-110 border border-white/10"
+                  >
+                    <ChevronLeft size={28} />
+                  </button>
+
+                  <motion.div
+                    key={activeImageIndex}
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3 }}
+                    className="relative aspect-video w-full max-w-5xl max-h-[45vh] sm:max-h-[60vh] overflow-hidden rounded-xl shadow-2xl shadow-black/80 border border-white/10"
+                  >
+                    <img
+                      src={selectedEvent.images[activeImageIndex]}
+                      alt={`${selectedEvent.title} - ${activeImageIndex + 1}`}
+                      className="h-full w-full object-cover"
+                    />
+                    
+                    {/* Mobile Nav Overlay */}
+                    <div className="sm:hidden absolute inset-0 flex items-center justify-between p-2 pointer-events-none">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveImageIndex((prev) => (prev > 0 ? prev - 1 : selectedEvent.images.length - 1));
+                        }}
+                        className="pointer-events-auto rounded-full bg-black/40 p-1.5 text-white border border-white/10"
+                      >
+                        <ChevronLeft size={20} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveImageIndex((prev) => (prev < selectedEvent.images.length - 1 ? prev + 1 : 0));
+                        }}
+                        className="pointer-events-auto rounded-full bg-black/40 p-1.5 text-white border border-white/10"
+                      >
+                        <ChevronRight size={20} />
+                      </button>
+                    </div>
+                  </motion.div>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveImageIndex((prev) => (prev < selectedEvent.images.length - 1 ? prev + 1 : 0));
+                    }}
+                    className="hidden sm:flex absolute right-0 lg:-right-4 z-[10000] rounded-full bg-white/10 p-2.5 text-white transition-all hover:bg-white/20 hover:scale-110 border border-white/10"
+                  >
+                    <ChevronRight size={28} />
+                  </button>
+                </div>
+
+                {/* Thumbnails Section */}
+                <div className="w-full flex flex-col items-center">
+                  <div className="flex gap-2 overflow-x-auto py-1 no-scrollbar px-2 max-w-full">
+                    {selectedEvent.images.map((img, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setActiveImageIndex(idx)}
+                        className={`relative h-12 w-18 sm:h-16 sm:w-24 flex-shrink-0 overflow-hidden rounded-lg border transition-all duration-300 ${
+                          activeImageIndex === idx
+                            ? "border-[#8a73a6] scale-105 shadow-md shadow-purple-500/40 opacity-100"
+                            : "border-white/10 opacity-50 hover:opacity-100"
+                        }`}
+                      >
+                        <img src={img} className="h-full w-full object-cover" alt="" />
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
-              
-              {/* Click outside to close */}
-              <div 
-                className="absolute inset-0 z-[-1] cursor-zoom-out" 
-                onClick={() => setSelectedEventIndex(null)} 
+
+              {/* Click outside to close (background only) */}
+              <div
+                className="fixed inset-0 z-[-1] cursor-zoom-out"
+                onClick={() => setSelectedEventIndex(null)}
               />
             </motion.div>
           )}
