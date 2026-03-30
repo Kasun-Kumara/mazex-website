@@ -419,6 +419,10 @@ export default function MazeAnimation({
       return;
     }
 
+    if (sameCell(cell, startCellRef.current) || sameCell(cell, endCellRef.current)) {
+      return;
+    }
+
     setStatusMessage(null);
 
     setGrid((previous) => {
