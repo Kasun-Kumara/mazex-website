@@ -126,10 +126,26 @@ export default function PastEvents() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.4, ease: "easeOut" }}
-              className="flex flex-col items-center"
+              className="flex flex-col items-center relative"
             >
+              {/* Ghost Text */}
+              <motion.span
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 0.06, scale: 1 }}
+                exit={{ opacity: 0, scale: 1.02 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+                className="absolute inset-0 flex items-center justify-center text-[12vw] sm:text-[14vw] font-black uppercase tracking-tighter text-white/20 pointer-events-none select-none whitespace-nowrap z-0 overflow-visible"
+              >
+                {(() => {
+                  const title = PAST_EVENTS[activeSlide].title.toLowerCase();
+                  if (title.includes("gammaddata")) return "Gammedda";
+                  if (title.includes("robotics day")) return "Robotics";
+                  return PAST_EVENTS[activeSlide].title;
+                })()}
+              </motion.span>
+
               {/* Main Dynamic Title */}
-              <h3 className="text-xl sm:text-2xl font-bold text-[#8a73a6] mb-4 tracking-wide">
+              <h3 className="text-2xl sm:text-3xl font-bold text-[#8a73a6] mb-4 tracking-wide relative z-10 drop-shadow-sm">
                 {PAST_EVENTS[activeSlide].title}
               </h3>
 
