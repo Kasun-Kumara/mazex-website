@@ -1,7 +1,8 @@
-import { Client, Databases, Query } from "node-appwrite";
+import { Client, Databases, Query, Storage } from "node-appwrite";
 import nodemailer from "nodemailer";
 
 const DEFAULT_SUBMISSIONS_COLLECTION_ID = "registration_submissions";
+const DEFAULT_REGISTRATION_FILES_BUCKET_ID = "registration_files";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 
 function getHeader(req, key) {
@@ -79,6 +80,27 @@ function createDatabasesService(req) {
   return new Databases(client);
 }
 
+function createStorageService(req) {
+  const key = String(getHeader(req, "x-appwrite-key") || "").trim();
+  if (!key) {
+    throw new Error("Missing x-appwrite-key header for Appwrite function execution.");
+  }
+
+  const client = new Client()
+    .setEndpoint(getRequiredEnv("APPWRITE_FUNCTION_API_ENDPOINT"))
+    .setProject(getRequiredEnv("APPWRITE_FUNCTION_PROJECT_ID"))
+    .setKey(key);
+
+  return new Storage(client);
+}
+
+function getRegistrationFilesBucketId() {
+  return (
+    process.env.APPWRITE_BUCKET_REGISTRATION_FILES?.trim() ||
+    DEFAULT_REGISTRATION_FILES_BUCKET_ID
+  );
+}
+
 function getTransportOptions() {
   const host = getRequiredEnv("REGISTRATION_CONFIRMATION_EMAIL_SMTP_HOST");
   const port = Number(getRequiredEnv("REGISTRATION_CONFIRMATION_EMAIL_SMTP_PORT"));
@@ -116,7 +138,112 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
-function buildEmail(recipientName, formTitle, customTemplateText, fields, answers, memberAnswers) {
+function getStoredFileId(value) {
+  if (typeof value === "string") {
+    const normalized = value.trim();
+    return normalized || "";
+  }
+
+  if (!value || typeof value !== "object") return "";
+
+  for (const key of ["fileId", "$id", "id"]) {
+    if (typeof value[key] === "string" && value[key].trim()) {
+      return value[key].trim();
+    }
+  }
+
+  return "";
+}
+
+function getStoredFileName(value) {
+  if (!value || typeof value !== "object") return "";
+
+  for (const key of ["fileName", "name", "originalName"]) {
+    if (typeof value[key] === "string" && value[key].trim()) {
+      return value[key].trim();
+    }
+  }
+
+  return "";
+}
+
+async function resolveUploadedFileNames(req, fields, answers, memberAnswers, log) {
+  const fileIds = new Set();
+  const fileFields = fields.filter((field) => field.type === "file");
+
+  const collectFileIds = (record) => {
+    if (!record || typeof record !== "object") return;
+
+    for (const field of fileFields) {
+      const fileId = getStoredFileId(record[field.key]);
+      if (fileId) fileIds.add(fileId);
+    }
+  };
+
+  collectFileIds(answers);
+  for (const member of memberAnswers) {
+    collectFileIds(member);
+  }
+
+  if (fileIds.size === 0) {
+    return new Map();
+  }
+
+  const storage = createStorageService(req);
+  const bucketId = getRegistrationFilesBucketId();
+  const entries = await Promise.all(
+    [...fileIds].map(async (fileId) => {
+      try {
+        const file = await storage.getFile(bucketId, fileId);
+        const fileName = typeof file?.name === "string" ? file.name.trim() : "";
+        return fileName ? [fileId, fileName] : null;
+      } catch (fetchError) {
+        const message =
+          fetchError instanceof Error ? fetchError.message : "Unknown Appwrite storage error.";
+        log(`Unable to resolve uploaded file name for ${fileId}: ${message}`);
+        return null;
+      }
+    }),
+  );
+
+  return new Map(entries.filter(Boolean));
+}
+
+function formatAnswerValueForEmail(field, value, fileNamesById) {
+  if (field.type === "file") {
+    const fileName = getStoredFileName(value);
+    if (fileName) return fileName;
+
+    const fileId = getStoredFileId(value);
+    if (fileId) return fileNamesById.get(fileId) || fileId;
+
+    return "-";
+  }
+
+  if (Array.isArray(value)) {
+    const normalizedValues = value
+      .map((item) => normalizeAnswerValue(item))
+      .filter(Boolean);
+    return normalizedValues.length > 0 ? normalizedValues.join(", ") : "-";
+  }
+
+  if (typeof value === "boolean") {
+    return value ? "Yes" : "No";
+  }
+
+  const normalized = normalizeAnswerValue(value);
+  return normalized || "-";
+}
+
+function buildEmail(
+  recipientName,
+  formTitle,
+  customTemplateText,
+  fields,
+  answers,
+  memberAnswers,
+  fileNamesById,
+) {
   const greeting = recipientName ? `Hi ${recipientName},` : "Hello,";
   const formLine = formTitle ? `Form: ${formTitle}` : null;
 
@@ -138,14 +265,16 @@ function buildEmail(recipientName, formTitle, customTemplateText, fields, answer
   if (submissionFields.length > 0) {
     inputsText.push("--- Submission Details ---");
     inputsHtml.push(`<h3 style="margin-top: 32px; margin-bottom: 16px; color: #18181b; font-size: 18px; font-weight: 600; border-bottom: 1px solid #e4e4e7; padding-bottom: 8px;">Submission Details</h3>`);
-    
+
     inputsHtml.push(`<table style="width: 100%; border-collapse: collapse;">`);
     for (const field of submissionFields) {
-      let val = answers[field.key];
-      if (Array.isArray(val)) val = val.join(", ");
-      const displayVal = val !== undefined && val !== null && val !== "" ? String(val) : "-";
+      const displayVal = formatAnswerValueForEmail(
+        field,
+        answers[field.key],
+        fileNamesById,
+      );
       inputsText.push(`${field.label}: ${displayVal}`);
-      
+
       inputsHtml.push(`
         <tr>
           <td style="padding: 12px 0; border-bottom: 1px solid #f4f4f5; width: 40%; color: #71717a; font-size: 14px; vertical-align: top;">${escapeHtml(field.label)}</td>
@@ -159,21 +288,23 @@ function buildEmail(recipientName, formTitle, customTemplateText, fields, answer
   if (memberAnswers && memberAnswers.length > 0 && memberFields.length > 0) {
     inputsText.push("");
     inputsText.push("--- Team Members ---");
-    
+
     inputsHtml.push(`<h3 style="margin-top: 32px; margin-bottom: 16px; color: #18181b; font-size: 18px; font-weight: 600; border-bottom: 1px solid #e4e4e7; padding-bottom: 8px;">Team Members</h3>`);
-    
+
     memberAnswers.forEach((member, index) => {
       inputsText.push(`Member ${index + 1}:`);
       inputsHtml.push(`<div style="margin-bottom: 24px; background-color: #fafafa; border: 1px solid #f4f4f5; border-radius: 8px; padding: 16px;">`);
       inputsHtml.push(`<h4 style="margin: 0 0 12px 0; color: #52525b; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em;">Member ${index + 1}</h4>`);
       inputsHtml.push(`<table style="width: 100%; border-collapse: collapse;">`);
-      
+
       for (const field of memberFields) {
-        let val = member[field.key];
-        if (Array.isArray(val)) val = val.join(", ");
-        const displayVal = val !== undefined && val !== null && val !== "" ? String(val) : "-";
+        const displayVal = formatAnswerValueForEmail(
+          field,
+          member[field.key],
+          fileNamesById,
+        );
         inputsText.push(`  ${field.label}: ${displayVal}`);
-        
+
         inputsHtml.push(`
           <tr>
             <td style="padding: 8px 0; border-bottom: 1px solid #e4e4e7; width: 40%; color: #71717a; font-size: 14px; vertical-align: top;">${escapeHtml(field.label)}</td>
@@ -311,7 +442,11 @@ async function sendRegistrationConfirmationEmail(context) {
     return res.json({ ok: true, skipped: "invalid_form_settings" });
   }
 
-  const answers = parseJson(payload.answersJson, {});
+  const parsedAnswers = parseJson(payload.answersJson, {});
+  const answers =
+    parsedAnswers && typeof parsedAnswers === "object" && !Array.isArray(parsedAnswers)
+      ? parsedAnswers
+      : {};
   const recipientEmail = normalizeAnswerValue(answers[emailField.key]);
   if (!recipientEmail) {
     log("Skipping confirmation email because the submission has no configured email value.");
@@ -326,12 +461,28 @@ async function sendRegistrationConfirmationEmail(context) {
   const recipientName = normalizeAnswerValue(answers[nameField.key]);
   const formTitle = typeof form.title === "string" ? form.title.trim() : "";
   const customTemplateText = typeof form.confirmationEmailTemplate === "string" ? form.confirmationEmailTemplate.trim() : "";
-  const memberAnswers = parseJson(payload.memberAnswersJson, []);
+  const parsedMemberAnswers = parseJson(payload.memberAnswersJson, []);
+  const memberAnswers = Array.isArray(parsedMemberAnswers) ? parsedMemberAnswers : [];
   const sortedFields = [...fieldsResult.documents].sort((a, b) => a.sortOrder - b.sortOrder);
+  const fileNamesById = await resolveUploadedFileNames(
+    req,
+    sortedFields,
+    answers,
+    memberAnswers,
+    log,
+  );
 
   try {
     const transporter = nodemailer.createTransport(getTransportOptions());
-    const email = buildEmail(recipientName, formTitle, customTemplateText, sortedFields, answers, memberAnswers);
+    const email = buildEmail(
+      recipientName,
+      formTitle,
+      customTemplateText,
+      sortedFields,
+      answers,
+      memberAnswers,
+      fileNamesById,
+    );
 
     await transporter.sendMail({
       from: getRequiredEnv("REGISTRATION_CONFIRMATION_EMAIL_FROM"),

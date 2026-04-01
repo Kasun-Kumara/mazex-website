@@ -5,7 +5,10 @@ import { AppwriteException, Databases, Storage, ID, Query, Models } from "node-a
 import { InputFile } from "node-appwrite/file";
 import { unstable_noStore as noStore } from "next/cache";
 import {
+  COLOMBO_OFFSET,
+  DISPLAY_TIME_ZONE,
   formatDateDisplay,
+  getStoredDateFromIso,
   normalizeDateFilterInput,
   parseDisplayDateInput,
 } from "@/lib/date-format";
@@ -32,7 +35,6 @@ import type {
   SubmissionFilters,
   SubmissionPage,
   SubmissionPayload,
-  SubmissionSummary,
 } from "@/lib/registration-types";
 import {
   fieldTypeSupportsCaseSensitiveUnique,
@@ -42,6 +44,11 @@ import {
   REGISTRATION_FIELD_TYPES,
   REGISTRATION_FORM_KINDS,
   REGISTRATION_FORM_STATUSES,
+  type RegistrationOverviewAnalytics,
+  type RegistrationOverviewCategoryBreakdownPoint,
+  type RegistrationOverviewFormBreakdownPoint,
+  type RegistrationOverviewTrendPoint,
+  type RegistrationOverviewWeekdayPoint,
 } from "@/lib/registration-types";
 
 // ─── Document row types ──────────────────────────────────────────────────────
@@ -59,10 +66,18 @@ type FormDoc = Models.Document & {
   confirmationEmailTemplate?: string | null;
   confirmationEmailFieldId?: string | null;
   confirmationNameFieldId?: string | null;
+  googleSheetsSyncEnabled?: boolean;
+  googleSheetsAdminUserId?: string | null;
+  googleSheetsSheetTitle?: string | null;
   teamMinMembers?: number;
   teamMaxMembers?: number;
   bannerFileId?: string | null;
   sortOrder?: number;
+};
+
+type FormGoogleSheetsSyncDoc = Models.Document & {
+  formId?: string;
+  selectedFieldIdsJson?: string | null;
 };
 
 type FieldDoc = Models.Document & {
@@ -103,6 +118,16 @@ const DEFAULT_SUCCESS_MESSAGE =
 const PAGE_SIZE_DEFAULT = 20;
 const MAX_ROW_PAGE_SIZE = 100;
 const UNIQUE_VALUE_PREVIEW_LIMIT = 255;
+const ANALYTICS_TREND_DAYS = 14;
+const ANALYTICS_WEEKDAY_LABELS = [
+  "Mon",
+  "Tue",
+  "Wed",
+  "Thu",
+  "Fri",
+  "Sat",
+  "Sun",
+] as const;
 
 // ─── Config helpers ──────────────────────────────────────────────────────────
 
@@ -114,6 +139,9 @@ function getRegistrationsConfig() {
   const uniqueValuesCollectionId =
     process.env.APPWRITE_COLLECTION_REGISTRATION_UNIQUE_VALUES?.trim() ||
     "registration_unique_values";
+  const googleSheetsFormSyncsCollectionId =
+    process.env.APPWRITE_COLLECTION_GOOGLE_SHEETS_FORM_SYNCS?.trim() ||
+    "google_sheets_form_syncs";
   const bannersBucketId = process.env.APPWRITE_BUCKET_FORM_BANNERS?.trim();
   const filesBucketId =
     process.env.APPWRITE_BUCKET_REGISTRATION_FILES?.trim() || "registration_files";
@@ -137,6 +165,7 @@ function getRegistrationsConfig() {
     fieldsCollectionId: fieldsCollectionId!,
     submissionsCollectionId: submissionsCollectionId!,
     uniqueValuesCollectionId,
+    googleSheetsFormSyncsCollectionId,
     bannersBucketId: bannersBucketId ?? "form_banners",
     filesBucketId,
   };
@@ -218,6 +247,13 @@ function parseJson<T>(v: string | null | undefined, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+function normalizeStringArray(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => trim(item))
+    .filter((item): item is string => Boolean(item));
 }
 
 function normalizeUniqueComparableValue(
@@ -313,6 +349,10 @@ function mapFormDoc(doc: FormDoc): FormDefinition | null {
     confirmationEmailTemplate: doc.confirmationEmailTemplate || null,
     confirmationEmailFieldId: trimNullable(doc.confirmationEmailFieldId),
     confirmationNameFieldId: trimNullable(doc.confirmationNameFieldId),
+    googleSheetsSyncEnabled: Boolean(doc.googleSheetsSyncEnabled),
+    googleSheetsSelectedFieldIds: [],
+    googleSheetsAdminUserId: trimNullable(doc.googleSheetsAdminUserId),
+    googleSheetsSheetTitle: trimNullable(doc.googleSheetsSheetTitle),
     teamMinMembers:
       typeof doc.teamMinMembers === "number" && Number.isFinite(doc.teamMinMembers)
         ? doc.teamMinMembers
@@ -536,9 +576,18 @@ export async function listRegistrationForms(
       formsCollectionId,
       [Query.limit(100)],
     );
-    return sortForms(
+    const forms = sortForms(
       result.documents.map(mapFormDoc).filter((f): f is FormDefinition => f !== null),
     );
+    const selectedFieldIdsByFormId = mapGoogleSheetsSelectedFieldIdsByFormId(
+      await listGoogleSheetsFormSyncDocsByQueries([]),
+    );
+
+    return forms.map((form) => ({
+      ...form,
+      googleSheetsSelectedFieldIds:
+        selectedFieldIdsByFormId.get(form.id) ?? form.googleSheetsSelectedFieldIds,
+    }));
   } catch {
     return [];
   }
@@ -587,7 +636,11 @@ export async function getRegistrationFormBySlug(
         .filter((f): f is FieldDefinition => f !== null),
     );
 
-    return { ...form, fields };
+    return {
+      ...form,
+      fields,
+      googleSheetsSelectedFieldIds: await getGoogleSheetsSelectedFieldIdsForForm(form.id),
+    };
   } catch {
     return null;
   }
@@ -606,12 +659,13 @@ export async function getRegistrationFormById(
     const { databaseId, formsCollectionId, fieldsCollectionId } = getRegistrationsConfig();
     const db = createDatabasesService();
 
-    const [formDoc, fieldsResult] = await Promise.all([
+    const [formDoc, fieldsResult, googleSheetsSelectedFieldIds] = await Promise.all([
       db.getDocument<FormDoc>(databaseId, formsCollectionId, formId),
       db.listDocuments<FieldDoc>(databaseId, fieldsCollectionId, [
         Query.equal("formId", formId),
         Query.limit(200),
       ]),
+      getGoogleSheetsSelectedFieldIdsForForm(formId),
     ]);
 
     const form = mapFormDoc(formDoc);
@@ -623,7 +677,7 @@ export async function getRegistrationFormById(
         .filter((f): f is FieldDefinition => f !== null),
     );
 
-    return { ...form, fields };
+    return { ...form, fields, googleSheetsSelectedFieldIds };
   } catch {
     return null;
   }
@@ -657,6 +711,9 @@ export async function createRegistrationForm(params: {
       confirmationEmailTemplate: null,
       confirmationEmailFieldId: null,
       confirmationNameFieldId: null,
+      googleSheetsSyncEnabled: false,
+      googleSheetsAdminUserId: null,
+      googleSheetsSheetTitle: null,
       teamMinMembers: 1,
       teamMaxMembers: 1,
       bannerFileId: null,
@@ -717,6 +774,113 @@ async function deleteUniqueValueReservationsByFormId(formId: string) {
       [Query.equal("formId", formId)],
     );
     await deleteUniqueValueReservationDocuments(docs.map((doc) => doc.$id));
+  } catch (error) {
+    if (!(error instanceof AppwriteException) || error.code !== 404) {
+      throw error;
+    }
+  }
+}
+
+async function listGoogleSheetsFormSyncDocsByQueries(baseQueries: string[]) {
+  const { googleSheetsFormSyncsCollectionId } = getRegistrationsConfig();
+
+  try {
+    return await listAllDocumentsByQueries<FormGoogleSheetsSyncDoc>(
+      googleSheetsFormSyncsCollectionId,
+      baseQueries,
+    );
+  } catch (error) {
+    if (error instanceof AppwriteException && error.code === 404) {
+      return [];
+    }
+
+    throw error;
+  }
+}
+
+function mapGoogleSheetsSelectedFieldIdsByFormId(
+  docs: FormGoogleSheetsSyncDoc[],
+) {
+  const selectedFieldIdsByFormId = new Map<string, string[]>();
+
+  for (const doc of docs) {
+    const formId = trim(doc.formId);
+    if (!formId) continue;
+
+    selectedFieldIdsByFormId.set(
+      formId,
+      normalizeStringArray(parseJson(doc.selectedFieldIdsJson, [])),
+    );
+  }
+
+  return selectedFieldIdsByFormId;
+}
+
+async function getGoogleSheetsSelectedFieldIdsForForm(formId: string) {
+  if (!trim(formId)) return [];
+
+  const docs = await listGoogleSheetsFormSyncDocsByQueries([
+    Query.equal("formId", formId),
+  ]);
+
+  return mapGoogleSheetsSelectedFieldIdsByFormId(docs).get(formId) ?? [];
+}
+
+async function upsertGoogleSheetsFormSync(
+  formId: string,
+  selectedFieldIds: string[],
+) {
+  const normalizedFormId = trim(formId);
+  if (!normalizedFormId) return;
+
+  const {
+    databaseId,
+    googleSheetsFormSyncsCollectionId,
+  } = getRegistrationsConfig();
+  const db = createDatabasesService();
+  const data = {
+    formId: normalizedFormId,
+    selectedFieldIdsJson: JSON.stringify(selectedFieldIds),
+  };
+
+  try {
+    await db.updateDocument(
+      databaseId,
+      googleSheetsFormSyncsCollectionId,
+      normalizedFormId,
+      data,
+    );
+    return;
+  } catch (error) {
+    if (!(error instanceof AppwriteException) || error.code !== 404) {
+      throw error;
+    }
+  }
+
+  await db.createDocument(
+    databaseId,
+    googleSheetsFormSyncsCollectionId,
+    normalizedFormId,
+    data,
+  );
+}
+
+async function deleteGoogleSheetsFormSync(formId: string) {
+  const normalizedFormId = trim(formId);
+  if (!normalizedFormId) return;
+
+  const {
+    databaseId,
+    googleSheetsFormSyncsCollectionId,
+  } = getRegistrationsConfig();
+  const db = createDatabasesService();
+
+  try {
+    await db.deleteDocument(
+      databaseId,
+      googleSheetsFormSyncsCollectionId,
+      normalizedFormId,
+    );
   } catch (error) {
     if (!(error instanceof AppwriteException) || error.code !== 404) {
       throw error;
@@ -805,6 +969,7 @@ export async function deleteRegistrationForm(formId: string) {
   );
 
   await deleteUniqueValueReservationsByFormId(formId);
+  await deleteGoogleSheetsFormSync(formId);
 
   // Delete the form
   return db.deleteDocument(databaseId, formsCollectionId, formId);
@@ -825,11 +990,16 @@ export async function updateRegistrationFormSettings(params: {
   confirmationEmailTemplate?: string | null;
   confirmationEmailFieldId: string | null;
   confirmationNameFieldId: string | null;
+  googleSheetsSyncEnabled: boolean;
+  googleSheetsSelectedFieldIds: string[];
+  googleSheetsAdminUserId: string | null;
+  googleSheetsSheetTitle: string | null;
   teamMinMembers: number;
   teamMaxMembers: number;
 }) {
   const { databaseId, formsCollectionId } = getRegistrationsConfig();
-  return createDatabasesService().updateDocument<FormDoc>(
+  const db = createDatabasesService();
+  const updatedForm = await db.updateDocument<FormDoc>(
     databaseId,
     formsCollectionId,
     params.formId,
@@ -845,10 +1015,20 @@ export async function updateRegistrationFormSettings(params: {
       confirmationEmailTemplate: params.confirmationEmailTemplate || null,
       confirmationEmailFieldId: params.confirmationEmailFieldId,
       confirmationNameFieldId: params.confirmationNameFieldId,
+      googleSheetsSyncEnabled: params.googleSheetsSyncEnabled,
+      googleSheetsAdminUserId: params.googleSheetsAdminUserId,
+      googleSheetsSheetTitle: params.googleSheetsSheetTitle,
       teamMinMembers: params.teamMinMembers,
       teamMaxMembers: params.teamMaxMembers,
     },
   );
+
+  await upsertGoogleSheetsFormSync(
+    params.formId,
+    params.googleSheetsSelectedFieldIds,
+  );
+
+  return updatedForm;
 }
 
 // ─── Banner management ────────────────────────────────────────────────────────
@@ -1276,17 +1456,26 @@ async function getFormsByIdMap() {
   const { databaseId, formsCollectionId, fieldsCollectionId } = getRegistrationsConfig();
   const db = createDatabasesService();
   
-  const [formsResult, fieldsResult] = await Promise.all([
+  const [formsResult, fieldsResult, googleSheetsFormSyncDocs] = await Promise.all([
     db.listDocuments<FormDoc>(databaseId, formsCollectionId, [Query.limit(100)]),
-    db.listDocuments<FieldDoc>(databaseId, fieldsCollectionId, [Query.limit(500)])
+    db.listDocuments<FieldDoc>(databaseId, fieldsCollectionId, [Query.limit(500)]),
+    listGoogleSheetsFormSyncDocsByQueries([]),
   ]);
   
   const forms = sortForms(formsResult.documents.map(mapFormDoc).filter((f): f is FormDefinition => f !== null));
   const fields = sortFields(fieldsResult.documents.map(mapFieldDoc).filter((f): f is FieldDefinition => f !== null));
+  const selectedFieldIdsByFormId = mapGoogleSheetsSelectedFieldIdsByFormId(
+    googleSheetsFormSyncDocs,
+  );
   
   const map = new Map<string, FormWithFields>();
   for (const form of forms) {
-    map.set(form.id, { ...form, fields: fields.filter(f => f.formId === form.id) });
+    map.set(form.id, {
+      ...form,
+      fields: fields.filter(f => f.formId === form.id),
+      googleSheetsSelectedFieldIds:
+        selectedFieldIdsByFormId.get(form.id) ?? form.googleSheetsSelectedFieldIds,
+    });
   }
   return map;
 }
@@ -1463,39 +1652,199 @@ export async function getRegistrationSubmissionById(
 
 // ─── Overview ─────────────────────────────────────────────────────────────────
 
+function shiftDisplayDate(dateKey: string, deltaDays: number) {
+  const anchor = new Date(`${dateKey}T12:00:00${COLOMBO_OFFSET}`);
+  anchor.setUTCDate(anchor.getUTCDate() + deltaDays);
+  return getStoredDateFromIso(anchor);
+}
+
+function formatAnalyticsDateLabel(dateKey: string) {
+  try {
+    return new Intl.DateTimeFormat("en-GB", {
+      day: "2-digit",
+      month: "short",
+      timeZone: DISPLAY_TIME_ZONE,
+    }).format(new Date(`${dateKey}T12:00:00${COLOMBO_OFFSET}`));
+  } catch {
+    return dateKey;
+  }
+}
+
+function getAnalyticsWeekdayLabel(value: string | Date) {
+  try {
+    return new Intl.DateTimeFormat("en-US", {
+      weekday: "short",
+      timeZone: DISPLAY_TIME_ZONE,
+    }).format(new Date(value));
+  } catch {
+    return "Mon";
+  }
+}
+
+function createTrendSeed(days: number) {
+  const todayKey = getStoredDateFromIso(new Date());
+  if (!todayKey) return [];
+
+  return Array.from({ length: days }, (_, index) =>
+    shiftDisplayDate(todayKey, index - (days - 1)),
+  )
+    .filter((value): value is string => Boolean(value))
+    .map<RegistrationOverviewTrendPoint>((date) => ({
+      date,
+      label: formatAnalyticsDateLabel(date),
+      total: 0,
+      competitions: 0,
+      workshops: 0,
+    }));
+}
+
+function buildRegistrationOverviewAnalytics(
+  items: RegistrationOverviewItem[],
+  submissionDocs: SubmissionDoc[],
+): RegistrationOverviewAnalytics {
+  const trend = createTrendSeed(ANALYTICS_TREND_DAYS);
+  const trendByDate = new Map(trend.map((point) => [point.date, point] as const));
+  const formsById = new Map(items.map((item) => [item.form.id, item.form] as const));
+  const formBreakdown = [...items]
+    .map<RegistrationOverviewFormBreakdownPoint>((item) => ({
+      formId: item.form.id,
+      label: item.form.title,
+      kind: item.form.kind,
+      availabilityState: item.availability.state,
+      submissions: item.submissionCount,
+    }))
+    .sort((a, b) => b.submissions - a.submissions || a.label.localeCompare(b.label));
+
+  const kindCounts = new Map<RegistrationFormKind, number>([
+    ["competition", 0],
+    ["workshop", 0],
+  ]);
+  for (const item of formBreakdown) {
+    kindCounts.set(item.kind, (kindCounts.get(item.kind) ?? 0) + item.submissions);
+  }
+
+  const weekdayCounts = new Map<string, number>(
+    ANALYTICS_WEEKDAY_LABELS.map((label) => [label, 0] as const),
+  );
+
+  for (const doc of submissionDocs) {
+    const form = formsById.get(trim(doc.formId));
+    if (!form) continue;
+
+    const dateKey = getStoredDateFromIso(doc.$createdAt);
+    const trendPoint = dateKey ? trendByDate.get(dateKey) : null;
+    if (trendPoint) {
+      trendPoint.total += 1;
+      if (form.kind === "competition") {
+        trendPoint.competitions += 1;
+      } else {
+        trendPoint.workshops += 1;
+      }
+    }
+
+    const weekday = getAnalyticsWeekdayLabel(doc.$createdAt);
+    if (weekdayCounts.has(weekday)) {
+      weekdayCounts.set(weekday, (weekdayCounts.get(weekday) ?? 0) + 1);
+    }
+  }
+
+  const kindBreakdown: RegistrationOverviewCategoryBreakdownPoint[] = [
+    {
+      key: "competition",
+      label: "Competition",
+      value: kindCounts.get("competition") ?? 0,
+    },
+    {
+      key: "workshop",
+      label: "Workshop",
+      value: kindCounts.get("workshop") ?? 0,
+    },
+  ];
+
+  const weekdayBreakdown: RegistrationOverviewWeekdayPoint[] =
+    ANALYTICS_WEEKDAY_LABELS.map((weekday) => ({
+      weekday,
+      submissions: weekdayCounts.get(weekday) ?? 0,
+    }));
+
+  const last7DaysSubmissions = trend
+    .slice(-7)
+    .reduce((total, point) => total + point.total, 0);
+  const previous7DaysSubmissions = trend
+    .slice(-14, -7)
+    .reduce((total, point) => total + point.total, 0);
+  const peakDay =
+    trend.reduce<RegistrationOverviewTrendPoint | null>((best, point) => {
+      if (!best || point.total > best.total) return point;
+      return best;
+    }, null) ?? null;
+  const busiestWeekday =
+    weekdayBreakdown.reduce<RegistrationOverviewWeekdayPoint | null>((best, point) => {
+      if (!best || point.submissions > best.submissions) return point;
+      return best;
+    }, null) ?? null;
+  const topForm = formBreakdown[0] ?? null;
+
+  return {
+    trend,
+    formBreakdown,
+    kindBreakdown,
+    weekdayBreakdown,
+    summary: {
+      last7DaysSubmissions,
+      previous7DaysSubmissions,
+      averageSubmissionsPerForm: items.length > 0
+        ? Number((submissionDocs.length / items.length).toFixed(1))
+        : 0,
+      topFormTitle: topForm && topForm.submissions > 0 ? topForm.label : null,
+      topFormCount: topForm?.submissions ?? 0,
+      peakDayLabel: peakDay && peakDay.total > 0 ? peakDay.label : null,
+      peakDayCount: peakDay?.total ?? 0,
+      busiestWeekday:
+        busiestWeekday && busiestWeekday.submissions > 0
+          ? busiestWeekday.weekday
+          : null,
+      busiestWeekdayCount: busiestWeekday?.submissions ?? 0,
+    },
+  };
+}
+
 export async function getRegistrationOverview(): Promise<RegistrationOverview> {
   noStore();
-  const forms = await listRegistrationForms();
-  const recentPage = await listRegistrationSubmissions({ page: 1, pageSize: 6 });
+  const [forms, recentPage] = await Promise.all([
+    listRegistrationForms(),
+    listRegistrationSubmissions({ page: 1, pageSize: 6 }),
+  ]);
 
   if (!isAppwriteConfigured() || !isRegistrationsConfigured()) {
+    const items = forms.map<RegistrationOverviewItem>((form) => ({
+      form,
+      availability: getFormAvailability(form),
+      submissionCount: 0,
+    }));
+
     return {
-      forms: forms.map<RegistrationOverviewItem>((form) => ({
-        form,
-        availability: getFormAvailability(form),
-        submissionCount: 0,
-      })),
+      forms: items,
       totalSubmissions: 0,
       recentSubmissions: recentPage.submissions,
+      analytics: buildRegistrationOverviewAnalytics(items, []),
     };
   }
 
   try {
-    const { databaseId, submissionsCollectionId } = getRegistrationsConfig();
-    const db = createDatabasesService();
-
-    const counts = await Promise.all(
-      forms.map(async (form) => {
-        const res = await db.listDocuments<SubmissionDoc>(
-          databaseId,
-          submissionsCollectionId,
-          [Query.equal("formId", form.id), Query.limit(1)],
-        );
-        return { formId: form.id, total: res.total };
-      }),
+    const { submissionsCollectionId } = getRegistrationsConfig();
+    const submissionDocs = await listAllDocumentsByQueries<SubmissionDoc>(
+      submissionsCollectionId,
+      [Query.orderDesc("$createdAt")],
     );
+    const countsByFormId = new Map<string, number>();
 
-    const countsByFormId = new Map(counts.map((c) => [c.formId, c.total] as const));
+    for (const doc of submissionDocs) {
+      const formId = trim(doc.formId);
+      if (!formId) continue;
+      countsByFormId.set(formId, (countsByFormId.get(formId) ?? 0) + 1);
+    }
+
     const items = forms.map<RegistrationOverviewItem>((form) => ({
       form,
       availability: getFormAvailability(form),
@@ -1506,16 +1855,20 @@ export async function getRegistrationOverview(): Promise<RegistrationOverview> {
       forms: items,
       totalSubmissions: items.reduce((t, i) => t + i.submissionCount, 0),
       recentSubmissions: recentPage.submissions,
+      analytics: buildRegistrationOverviewAnalytics(items, submissionDocs),
     };
   } catch {
+    const items = forms.map((form) => ({
+      form,
+      availability: getFormAvailability(form),
+      submissionCount: 0,
+    }));
+
     return {
-      forms: forms.map((form) => ({
-        form,
-        availability: getFormAvailability(form),
-        submissionCount: 0,
-      })),
+      forms: items,
       totalSubmissions: 0,
       recentSubmissions: recentPage.submissions,
+      analytics: buildRegistrationOverviewAnalytics(items, []),
     };
   }
 }

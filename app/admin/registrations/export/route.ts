@@ -3,6 +3,7 @@ import {
   getRegistrationFormBySlug,
   listAllRegistrationSubmissionDetails,
 } from "@/lib/registrations";
+import { formatDateTimeDisplay } from "@/lib/date-format";
 
 export const dynamic = "force-dynamic";
 
@@ -58,7 +59,7 @@ export async function GET(request: Request) {
 
   const rows = details.map((detail) => {
     const baseColumns = [
-      detail.createdAt,
+      formatDateTimeDisplay(detail.createdAt),
       detail.teamName ?? "",
       ...submissionFields.map((field) => detail.answers[field.key] ?? ""),
     ];

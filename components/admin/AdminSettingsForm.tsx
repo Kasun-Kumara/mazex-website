@@ -1,17 +1,20 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Eye, EyeOff, KeyRound, ShieldAlert, X } from "lucide-react";
+import { ExternalLink, Eye, EyeOff, KeyRound, ShieldAlert, X } from "lucide-react";
 import {
   changeAdminPasswordAction,
   type ChangeAdminPasswordState,
 } from "@/app/admin/actions";
+import type { GoogleSheetsConnection } from "@/lib/google-sheets";
 
 const initialState: ChangeAdminPasswordState = {
   error: null,
   toastKey: 0,
 };
+const GOOGLE_SHEETS_SECTION_ID = "google-sign-in";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -85,7 +88,13 @@ function Field({
   );
 }
 
-export default function AdminSettingsForm() {
+export default function AdminSettingsForm({
+  googleSheetsConnection,
+  googleSheetsOAuthConfigured,
+}: {
+  googleSheetsConnection: GoogleSheetsConnection | null;
+  googleSheetsOAuthConfigured: boolean;
+}) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -120,6 +129,9 @@ export default function AdminSettingsForm() {
 
   const visibleToast =
     activeToast && activeToast.id !== dismissedToastId ? activeToast : null;
+  const googleSheetsConnectHref = `/api/admin/google-sheets/connect?returnTo=${encodeURIComponent(
+    `/admin/settings#${GOOGLE_SHEETS_SECTION_ID}`,
+  )}`;
 
   return (
     <>
@@ -143,49 +155,123 @@ export default function AdminSettingsForm() {
       ) : null}
 
       <div className="mx-auto w-full max-w-2xl px-4 sm:px-0">
-        <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8 dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="max-w-xl">
-            <div className="inline-flex items-center rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">
-              Settings
+        <div className="space-y-6">
+          <section
+            id={GOOGLE_SHEETS_SECTION_ID}
+            className="scroll-mt-28 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8 dark:border-zinc-800 dark:bg-zinc-900"
+          >
+            <div className="max-w-xl">
+              <div className="inline-flex items-center rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">
+                Google Sheets
+              </div>
+              <h2 className="mt-4 text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl dark:text-zinc-50">
+                Google sign in
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+                Connect the single Google account used for registration syncs
+                here. Form settings will link back to this section whenever sync
+                needs Google access.
+              </p>
             </div>
-            <h2 className="mt-4 text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl dark:text-zinc-50">
-              Change password
-            </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-              Enter your current password, set a new one, and confirm it. After
-              the password changes successfully, the current admin session will
-              be signed out automatically and redirected to the login page.
-            </p>
-          </div>
 
-          <form action={formAction} className="mt-8 space-y-5">
-            <Field
-              id="currentPassword"
-              label="Current password"
-              name="currentPassword"
-              value={currentPassword}
-              onChange={setCurrentPassword}
-              autoComplete="current-password"
-            />
-            <Field
-              id="newPassword"
-              label="New password"
-              name="newPassword"
-              value={newPassword}
-              onChange={setNewPassword}
-              autoComplete="new-password"
-            />
-            <Field
-              id="confirmPassword"
-              label="Confirm new password"
-              name="confirmPassword"
-              value={confirmPassword}
-              onChange={setConfirmPassword}
-              autoComplete="new-password"
-            />
+            <div className="mt-8 rounded-lg border border-zinc-200 bg-zinc-50/70 p-4 dark:border-zinc-800 dark:bg-zinc-950/50">
+              {googleSheetsConnection ? (
+                <>
+                  <p className="text-sm text-zinc-700 dark:text-zinc-300">
+                    Connected as{" "}
+                    <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                      {googleSheetsConnection.email ?? "Google account"}
+                    </span>
+                    .
+                  </p>
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <Link
+                      href={googleSheetsConnectHref}
+                      className="inline-flex items-center gap-2 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                    >
+                      Reconnect Google
+                    </Link>
+                    {googleSheetsConnection.spreadsheetUrl ? (
+                      <a
+                        href={googleSheetsConnection.spreadsheetUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 transition-colors hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+                      >
+                        Open spreadsheet
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    ) : null}
+                  </div>
+                </>
+              ) : googleSheetsOAuthConfigured ? (
+                <>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                    No Google account is connected yet. Connect one here before
+                    enabling Google Sheets sync on a form.
+                  </p>
+                  <Link
+                    href={googleSheetsConnectHref}
+                    className="mt-3 inline-flex items-center gap-2 rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                  >
+                    Connect Google
+                  </Link>
+                </>
+              ) : (
+                <p className="text-sm text-amber-600 dark:text-amber-400">
+                  Google OAuth is not configured yet. Add{" "}
+                  <code>GOOGLE_OAUTH_CLIENT_ID</code> and{" "}
+                  <code>GOOGLE_OAUTH_CLIENT_SECRET</code> before using Sheets
+                  sync.
+                </p>
+              )}
+            </div>
+          </section>
 
-            <SubmitButton />
-          </form>
+          <section className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8 dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="max-w-xl">
+              <div className="inline-flex items-center rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">
+                Settings
+              </div>
+              <h2 className="mt-4 text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl dark:text-zinc-50">
+                Change password
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+                Enter your current password, set a new one, and confirm it. After
+                the password changes successfully, the current admin session will
+                be signed out automatically and redirected to the login page.
+              </p>
+            </div>
+
+            <form action={formAction} className="mt-8 space-y-5">
+              <Field
+                id="currentPassword"
+                label="Current password"
+                name="currentPassword"
+                value={currentPassword}
+                onChange={setCurrentPassword}
+                autoComplete="current-password"
+              />
+              <Field
+                id="newPassword"
+                label="New password"
+                name="newPassword"
+                value={newPassword}
+                onChange={setNewPassword}
+                autoComplete="new-password"
+              />
+              <Field
+                id="confirmPassword"
+                label="Confirm new password"
+                name="confirmPassword"
+                value={confirmPassword}
+                onChange={setConfirmPassword}
+                autoComplete="new-password"
+              />
+
+              <SubmitButton />
+            </form>
+          </section>
         </div>
       </div>
     </>

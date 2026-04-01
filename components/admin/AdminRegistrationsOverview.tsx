@@ -1,7 +1,14 @@
 import Link from "next/link";
-import { ClipboardList, ExternalLink, LayoutTemplate } from "lucide-react";
+import {
+  BarChart3,
+  ClipboardList,
+  ExternalLink,
+  LayoutTemplate,
+  Trophy,
+} from "lucide-react";
 import { formatDateTimeDisplay } from "@/lib/date-format";
 import { getRegistrationOverview } from "@/lib/registrations";
+import AdminRegistrationAnalyticsCharts from "./AdminRegistrationAnalyticsCharts";
 
 function formatTimestamp(value: string) {
   return formatDateTimeDisplay(value);
@@ -9,6 +16,17 @@ function formatTimestamp(value: string) {
 
 export default async function AdminRegistrationsOverview() {
   const overview = await getRegistrationOverview();
+  const rankedForms = [...overview.forms].sort(
+    (a, b) => b.submissionCount - a.submissionCount || a.form.title.localeCompare(b.form.title),
+  );
+  const maxSubmissionCount = Math.max(
+    ...rankedForms.map((item) => item.submissionCount),
+    1,
+  );
+  const openFormsCount = overview.forms.filter(
+    (item) => item.availability.isAcceptingSubmissions,
+  ).length;
+  const topForm = rankedForms[0] ?? null;
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 pb-10">
@@ -19,12 +37,10 @@ export default async function AdminRegistrationsOverview() {
               Registration Analytics
             </div>
             <h2 className="mt-4 text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-              Dynamic registration overview
+              MaxeX 1.0
             </h2>
             <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400 max-w-2xl leading-relaxed">
-              Track submission volume across the forms, open the form builder
-              to manage schemas, and review registrations on a separate submissions
-              page.
+              Powered by Knurdz
             </p>
           </div>
 
@@ -70,43 +86,123 @@ export default async function AdminRegistrationsOverview() {
         </div>
       </div>
 
+      <AdminRegistrationAnalyticsCharts analytics={overview.analytics} />
+
       <div className="grid gap-8 xl:grid-cols-[1.5fr_1fr]">
         <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 sm:p-8 shadow-sm">
-          <h3 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-            Forms
-          </h3>
-          <div className="mt-6 grid gap-4 lg:grid-cols-2">
-            {overview.forms.map((item) => (
-              <Link
-                key={item.form.id}
-                href={`/admin/form-builder?form=${item.form.slug}`}
-                className="group block rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 p-5 transition-all hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-700"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                      {item.form.kind}
-                    </p>
-                    <p className="mt-1 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-                      {item.form.title}
-                    </p>
-                  </div>
-                  <ExternalLink className="h-4 w-4 text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-colors" />
-                </div>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="max-w-2xl">
+              <h3 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+                Forms
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+                A ranked view of every registration form, with live status and
+                relative submission momentum.
+              </p>
+            </div>
 
-                <div className="mt-5 grid gap-3 grid-cols-2">
-                  <MetricInline
-                    label="Status"
-                    value={item.availability.label}
-                  />
-                  <MetricInline
-                    label="Submissions"
-                    value={String(item.submissionCount)}
-                  />
-                </div>
-              </Link>
-            ))}
+            <div className="flex flex-wrap gap-2">
+              <SummaryPill
+                icon={BarChart3}
+                label="Open now"
+                value={String(openFormsCount)}
+              />
+              <SummaryPill
+                icon={Trophy}
+                label="Top form"
+                value={topForm ? `${topForm.submissionCount}` : "0"}
+              />
+            </div>
           </div>
+
+          {rankedForms.length > 0 ? (
+            <div className="mt-6 space-y-4">
+              {rankedForms.map((item, index) => {
+                const share = overview.totalSubmissions > 0
+                  ? Math.round((item.submissionCount / overview.totalSubmissions) * 100)
+                  : 0;
+                const progressWidth = Math.max(
+                  6,
+                  Math.round((item.submissionCount / maxSubmissionCount) * 100),
+                );
+
+                return (
+                  <Link
+                    key={item.form.id}
+                    href={`/admin/form-builder?form=${item.form.slug}`}
+                    className="group block overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-950/80 p-5 transition-all hover:border-zinc-300 hover:shadow-sm dark:hover:border-zinc-700"
+                  >
+                    <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start gap-4">
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-sm font-bold text-zinc-700 dark:text-zinc-200 shadow-sm">
+                            #{index + 1}
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className={getKindBadgeClasses(item.form.kind)}>
+                                {formatFormKindLabel(item.form.kind)}
+                              </span>
+                              <span className={getAvailabilityBadgeClasses(item.availability.state)}>
+                                {item.availability.label}
+                              </span>
+                            </div>
+
+                            <div className="mt-3 flex items-start justify-between gap-4">
+                              <div className="min-w-0">
+                                <p className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+                                  {item.form.title}
+                                </p>
+                                <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                                  {item.availability.description ??
+                                    "No timing note configured for this form yet."}
+                                </p>
+                              </div>
+                              <ExternalLink className="mt-1 h-4 w-4 shrink-0 text-zinc-400 transition-colors group-hover:text-zinc-700 dark:group-hover:text-zinc-200" />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-5">
+                          <div className="flex items-center justify-between gap-3 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                            <span>Submission momentum</span>
+                            <span>{share}% of all submissions</span>
+                          </div>
+                          <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+                            <div
+                              className={getProgressBarClasses(item.form.kind)}
+                              style={{ width: `${progressWidth}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 lg:min-w-48 lg:grid-cols-1">
+                        <FeatureStat
+                          label="Submissions"
+                          value={String(item.submissionCount)}
+                        />
+                        <FeatureStat
+                          label="Relative rank"
+                          value={`#${index + 1}`}
+                        />
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="mt-6 rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-700 p-8 text-center">
+              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                No forms created yet
+              </p>
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                Create a registration form and it will appear here with live analytics.
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 sm:p-8 shadow-sm">
@@ -170,15 +266,73 @@ function MetricCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function MetricInline({ label, value }: { label: string; value: string }) {
+function SummaryPill({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof BarChart3;
+  label: string;
+  value: string;
+}) {
   return (
-    <div className="rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2">
+    <div className="inline-flex items-center gap-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-950/80 px-3.5 py-2.5">
+      <div className="rounded-lg bg-zinc-100 dark:bg-zinc-900 p-2 text-zinc-600 dark:text-zinc-300">
+        <Icon className="h-4 w-4" />
+      </div>
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+          {label}
+        </p>
+        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+          {value}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function FeatureStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3.5 py-3 shadow-sm">
       <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
         {label}
       </p>
-      <p className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-50 truncate">
+      <p className="mt-1 text-base font-semibold text-zinc-900 dark:text-zinc-50 truncate">
         {value}
       </p>
     </div>
   );
+}
+
+function formatFormKindLabel(kind: string) {
+  return kind === "competition" ? "Competition" : "Workshop";
+}
+
+function getKindBadgeClasses(kind: string) {
+  if (kind === "competition") {
+    return "inline-flex items-center rounded-full border border-zinc-200 bg-zinc-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300";
+  }
+
+  return "inline-flex items-center rounded-full border border-zinc-200 bg-zinc-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400";
+}
+
+function getAvailabilityBadgeClasses(state: string) {
+  if (state === "open") {
+    return "inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-200";
+  }
+
+  if (state === "upcoming") {
+    return "inline-flex items-center rounded-full border border-zinc-200 bg-zinc-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300";
+  }
+
+  return "inline-flex items-center rounded-full border border-zinc-200 bg-zinc-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300";
+}
+
+function getProgressBarClasses(kind: string) {
+  if (kind === "competition") {
+    return "h-full rounded-full bg-zinc-700 dark:bg-zinc-300";
+  }
+
+  return "h-full rounded-full bg-zinc-500 dark:bg-zinc-500";
 }

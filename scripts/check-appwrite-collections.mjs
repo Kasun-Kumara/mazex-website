@@ -29,6 +29,8 @@ const cols = [
   env.APPWRITE_COLLECTION_REGISTRATION_FIELDS || "registration_fields",
   env.APPWRITE_COLLECTION_REGISTRATION_SUBMISSIONS || "registration_submissions",
   env.APPWRITE_COLLECTION_REGISTRATION_UNIQUE_VALUES || "registration_unique_values",
+  env.APPWRITE_COLLECTION_GOOGLE_SHEETS_FORM_SYNCS || "google_sheets_form_syncs",
+  env.APPWRITE_COLLECTION_GOOGLE_SHEETS_CONNECTIONS || "google_sheets_connections",
 ];
 
 for (const colId of cols) {

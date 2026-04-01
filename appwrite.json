@@ -245,6 +245,31 @@
                     "default": null
                 },
                 {
+                    "key": "googleSheetsSyncEnabled",
+                    "type": "boolean",
+                    "required": false,
+                    "array": false,
+                    "default": false
+                },
+                {
+                    "key": "googleSheetsAdminUserId",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 255,
+                    "encrypt": false,
+                    "default": null
+                },
+                {
+                    "key": "googleSheetsSheetTitle",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 128,
+                    "encrypt": false,
+                    "default": null
+                },
+                {
                     "key": "teamMinMembers",
                     "type": "integer",
                     "required": false,
@@ -551,6 +576,98 @@
     ],
     "buckets": [
         {
+            "$id": "google_sheets_form_syncs",
+            "$permissions": [],
+            "databaseId": "mazex_data",
+            "name": "Google Sheets Form Syncs",
+            "enabled": true,
+            "documentSecurity": false,
+            "attributes": [
+                {
+                    "key": "formId",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 255,
+                    "encrypt": false,
+                    "default": null
+                },
+                {
+                    "key": "selectedFieldIdsJson",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 2048,
+                    "encrypt": false,
+                    "default": null
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "by_form",
+                    "type": "unique",
+                    "attributes": ["formId"],
+                    "orders": []
+                }
+            ]
+        },
+        {
+            "$id": "google_sheets_connections",
+            "$permissions": [],
+            "databaseId": "mazex_data",
+            "name": "Google Sheets Connections",
+            "enabled": true,
+            "documentSecurity": false,
+            "attributes": [
+                {
+                    "key": "adminUserId",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 255,
+                    "encrypt": false,
+                    "default": null
+                },
+                {
+                    "key": "email",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 255,
+                    "encrypt": false,
+                    "default": null
+                },
+                {
+                    "key": "refreshToken",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 4096,
+                    "encrypt": true,
+                    "default": null
+                },
+                {
+                    "key": "spreadsheetId",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 255,
+                    "encrypt": false,
+                    "default": null
+                },
+                {
+                    "key": "spreadsheetUrl",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 2048,
+                    "encrypt": false,
+                    "default": null
+                }
+            ],
+            "indexes": []
+        },
+        {
             "$id": "sponsor_assets",
             "$permissions": [],
             "fileSecurity": false,
@@ -607,6 +724,24 @@
             "entrypoint": "src/main.js",
             "commands": "npm install --omit=dev",
             "path": "functions/send-registration-confirmation-email"
+        },
+        {
+            "$id": "registration_google_sheets_sync",
+            "name": "Registration Google Sheets Sync",
+            "runtime": "node-22",
+            "execute": [],
+            "events": ["databases.*.collections.*.documents.*.create"],
+            "scopes": [
+                "databases.read",
+                "documents.read"
+            ],
+            "schedule": "",
+            "timeout": 30,
+            "enabled": true,
+            "logging": true,
+            "entrypoint": "src/main.js",
+            "commands": "npm install --omit=dev",
+            "path": "functions/sync-registration-to-google-sheets"
         }
     ],
     "teams": [],

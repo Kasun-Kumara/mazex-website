@@ -5,6 +5,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentAdmin } from "@/lib/admin-auth";
 import { AppwriteConfigError } from "@/lib/appwrite";
+import {
+  getGoogleSheetsConnectionRecordForAdmin,
+  makeLegacyGoogleSheetsSheetTitle,
+  makeDefaultGoogleSheetsSheetTitle,
+} from "@/lib/google-sheets";
 import { parseDisplayDateBoundaryInput } from "@/lib/date-format";
 import {
   getAutoManagedSiteEventEnabled,
@@ -44,6 +49,7 @@ import {
   WORKSHOP_SITE_EVENTS,
 } from "@/lib/site-event-types";
 import {
+  fieldTypeSupportsGoogleSheetsSync,
   fieldTypeSupportsCaseSensitiveUnique,
   fieldTypeSupportsPlaceholder,
   fieldTypeSupportsUnique,
@@ -128,6 +134,21 @@ function readUnknownOptionalString(value: unknown) {
 
 function readUnknownBoolean(value: unknown) {
   return value === true || value === "true" || value === "on";
+}
+
+function readStringArrayJson(value: string) {
+  if (!value.trim()) return [];
+
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .map((item) => readUnknownString(item))
+      .filter((item): item is string => Boolean(item));
+  } catch {
+    return [];
+  }
 }
 
 function parseInteger(value: string, fallback: number) {
@@ -265,6 +286,12 @@ function isConfirmationNameFieldCandidate(
   return field.scope === "submission" && field.type === "text";
 }
 
+function isGoogleSheetsFieldCandidate(
+  field: Pick<FieldDefinition, "type">,
+) {
+  return fieldTypeSupportsGoogleSheetsSync(field.type);
+}
+
 function validateConfirmationEmailSettings(params: {
   enabled: boolean;
   emailFieldId: string | null;
@@ -299,6 +326,90 @@ function validateConfirmationEmailSettings(params: {
   return {
     confirmationEmailFieldId: emailField.id,
     confirmationNameFieldId: nameField.id,
+  };
+}
+
+function validateGoogleSheetsSelectedFields(params: {
+  enabled: boolean;
+  selectedFieldIds: string[];
+  fields: Array<Pick<FieldDefinition, "id" | "type">>;
+}) {
+  const selectedFieldIds = [...new Set(params.selectedFieldIds.map(readUnknownString))].filter(
+    Boolean,
+  );
+
+  if (params.enabled && selectedFieldIds.length === 0) {
+    throw new Error("Choose at least one field to sync to Google Sheets.");
+  }
+
+  const invalidFieldId = selectedFieldIds.find((fieldId) => {
+    const field = params.fields.find((candidate) => candidate.id === fieldId);
+    return !field || !isGoogleSheetsFieldCandidate(field);
+  });
+
+  if (invalidFieldId) {
+    throw new Error("Google Sheets sync can only use supported non-file, non-page-break form fields.");
+  }
+
+  return selectedFieldIds;
+}
+
+async function validateGoogleSheetsSyncSettings(params: {
+  enabled: boolean;
+  selectedFieldIds: string[];
+  fields: Array<Pick<FieldDefinition, "id" | "type">>;
+  currentAdminUserId: string;
+  currentAdminHasConnection: boolean;
+  existingConnectionOwnerId: string | null;
+  formTitle: string;
+  formSlug: string;
+  existingSheetTitle: string | null;
+}) {
+  const selectedFieldIds = validateGoogleSheetsSelectedFields({
+    enabled: params.enabled,
+    selectedFieldIds: params.selectedFieldIds,
+    fields: params.fields,
+  });
+  const legacyDefaultSheetTitle = makeLegacyGoogleSheetsSheetTitle(
+    params.formTitle,
+    params.formSlug,
+  );
+  const nextDefaultSheetTitle = makeDefaultGoogleSheetsSheetTitle(
+    params.formTitle,
+    params.formSlug,
+  );
+  const normalizedExistingSheetTitle =
+    !params.existingSheetTitle || params.existingSheetTitle === legacyDefaultSheetTitle
+      ? nextDefaultSheetTitle
+      : params.existingSheetTitle;
+
+  if (!params.enabled) {
+    return {
+      googleSheetsSyncEnabled: false,
+      googleSheetsSelectedFieldIds: selectedFieldIds,
+      googleSheetsAdminUserId: params.existingConnectionOwnerId,
+      googleSheetsSheetTitle: normalizedExistingSheetTitle,
+    };
+  }
+
+  const existingConnection = params.existingConnectionOwnerId
+    ? await getGoogleSheetsConnectionRecordForAdmin(params.existingConnectionOwnerId)
+    : null;
+  const googleSheetsAdminUserId =
+    existingConnection?.adminUserId ||
+    (params.currentAdminHasConnection ? params.currentAdminUserId : null);
+
+  if (!googleSheetsAdminUserId) {
+    throw new Error(
+      "Connect a Google account in Settings before enabling Google Sheets sync.",
+    );
+  }
+
+  return {
+    googleSheetsSyncEnabled: true,
+    googleSheetsSelectedFieldIds: selectedFieldIds,
+    googleSheetsAdminUserId,
+    googleSheetsSheetTitle: normalizedExistingSheetTitle,
   };
 }
 
@@ -528,7 +639,7 @@ export async function updateRegistrationFormSettingsAction(
   formData: FormData,
 ): Promise<RegistrationAdminActionState> {
   try {
-    await requireAdmin();
+    const admin = await requireAdmin();
 
     const formId = readString(formData, "formId");
     if (!formId) throw new Error("Unable to determine which form to update.");
@@ -607,6 +718,23 @@ export async function updateRegistrationFormSettingsAction(
       nameFieldId: readOptionalString(formData, "confirmationNameFieldId"),
       fields: form.fields,
     });
+    const googleSheetsSyncEnabled = formData.get("googleSheetsSyncEnabled") === "on";
+    const currentAdminGoogleConnection = await getGoogleSheetsConnectionRecordForAdmin(
+      admin.user.$id,
+    );
+    const googleSheetsSettings = await validateGoogleSheetsSyncSettings({
+      enabled: googleSheetsSyncEnabled,
+      selectedFieldIds: readStringArrayJson(
+        readString(formData, "googleSheetsSelectedFieldIdsJson"),
+      ),
+      fields: form.fields,
+      currentAdminUserId: admin.user.$id,
+      currentAdminHasConnection: Boolean(currentAdminGoogleConnection),
+      existingConnectionOwnerId: form.googleSheetsAdminUserId,
+      formTitle: title,
+      formSlug: slug,
+      existingSheetTitle: form.googleSheetsSheetTitle,
+    });
 
     await updateRegistrationFormSettings({
       formId: form.id,
@@ -621,6 +749,10 @@ export async function updateRegistrationFormSettingsAction(
       confirmationEmailTemplate,
       confirmationEmailFieldId: confirmationSettings.confirmationEmailFieldId,
       confirmationNameFieldId: confirmationSettings.confirmationNameFieldId,
+      googleSheetsSyncEnabled: googleSheetsSettings.googleSheetsSyncEnabled,
+      googleSheetsSelectedFieldIds: googleSheetsSettings.googleSheetsSelectedFieldIds,
+      googleSheetsAdminUserId: googleSheetsSettings.googleSheetsAdminUserId,
+      googleSheetsSheetTitle: googleSheetsSettings.googleSheetsSheetTitle,
       teamMinMembers,
       teamMaxMembers,
     });
@@ -868,6 +1000,11 @@ export async function bulkSaveRegistrationFieldsAction(
       enabled: form.confirmationEmailEnabled,
       emailFieldId: form.confirmationEmailFieldId,
       nameFieldId: form.confirmationNameFieldId,
+      fields: normalizedFields,
+    });
+    validateGoogleSheetsSelectedFields({
+      enabled: form.googleSheetsSyncEnabled,
+      selectedFieldIds: form.googleSheetsSelectedFieldIds,
       fields: normalizedFields,
     });
 

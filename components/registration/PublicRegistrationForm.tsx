@@ -24,10 +24,10 @@ const initialState: SubmitRegistrationState = {
 };
 
 function fieldInputClass(hasError: boolean) {
-  return `w-full rounded-xl border bg-white/[0.03] px-4 py-3.5 text-sm text-slate-100 outline-none transition-all placeholder:text-slate-500 hover:bg-white/[0.04] focus:bg-white/[0.05] shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] ${
+  return `w-full rounded-xl bg-white/[0.03] px-4 py-3 text-[15px] text-zinc-100 outline-none transition-all placeholder:text-zinc-500 hover:bg-white/[0.04] focus:bg-white/[0.05] border border-white/5 ${
     hasError
-      ? "border-rose-400/60 focus:border-rose-400 focus:ring-1 focus:ring-rose-400/50"
-      : "border-white/10 hover:border-white/15 focus:border-white/25 focus:ring-1 focus:ring-white/10"
+      ? "border-rose-500/50 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10"
+      : "focus:border-white/20 focus:ring-4 focus:ring-white/10"
   }`;
 }
 
@@ -37,7 +37,7 @@ function SubmitButton({ disabled }: { disabled: boolean }) {
     <button
       type="submit"
       disabled={disabled || pending}
-      className="theme-button theme-button-register inline-flex w-full items-center justify-center rounded-full px-8 py-3.5 text-[15px] font-semibold tracking-wide disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+      className="inline-flex w-full items-center justify-center rounded-xl bg-white text-black px-8 py-3.5 text-[15px] font-medium tracking-wide transition-all hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
     >
       {pending ? "Submitting…" : "Submit registration"}
     </button>
@@ -48,14 +48,14 @@ function FieldHint({ error }: { error?: string }) {
   if (!error) return null;
   return (
     <div className="mt-2 space-y-1">
-      <p className="text-[13px] leading-5 text-rose-300">{error}</p>
+      <p className="text-[13px] font-medium text-rose-400">{error}</p>
     </div>
   );
 }
 
 function FieldDescription({ helpText }: { helpText?: string | null }) {
   if (!helpText) return null;
-  return <p className="mb-3 text-sm leading-6 text-slate-400">{helpText}</p>;
+  return <p className="mb-2.5 text-[13px] leading-relaxed text-zinc-400">{helpText}</p>;
 }
 
 import { Check, ChevronDown, UploadCloud, File, AlertCircle } from "lucide-react";
@@ -84,16 +84,16 @@ function ChoiceField({
           defaultValue={typeof defaultValue === "string" ? defaultValue : ""}
           className={`${fieldInputClass(Boolean(error))} appearance-none pr-10`}
         >
-          <option value="" className="bg-slate-900 text-slate-400">
+          <option value="" className="bg-[#09090b] text-zinc-500">
             {field.placeholder?.trim() || "Select an option..."}
           </option>
           {options.map((o) => (
-            <option key={o.value} value={o.value} className="bg-slate-900 text-slate-100">
+            <option key={o.value} value={o.value} className="bg-[#09090b] text-zinc-100">
               {o.label}
             </option>
           ))}
         </select>
-        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-slate-400">
+        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-zinc-500">
           <ChevronDown className="h-4 w-4" />
         </div>
         <FieldHint error={error} />
@@ -103,13 +103,13 @@ function ChoiceField({
 
   return (
     <>
-      <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.02] p-5 transition-colors hover:bg-white/[0.03]">
+      <div className="space-y-3 rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-colors hover:bg-white/[0.03]">
         {options.map((o) => (
           <label
             key={o.value}
-            className="group relative flex cursor-pointer items-start gap-4"
+            className="group relative flex cursor-pointer items-start gap-3.5"
           >
-            <div className="relative mt-0.5 h-5 w-5 shrink-0">
+            <div className="relative mt-[3px] h-4 w-4 shrink-0">
               <input
                 type={field.type === "radio" ? "radio" : "checkbox"}
                 name={name}
@@ -124,19 +124,19 @@ function ChoiceField({
                 className="peer sr-only"
               />
               {field.type === "checkbox" ? (
-                <div className="absolute inset-0 flex items-center justify-center rounded-[6px] border-2 border-white/20 bg-white/5 text-transparent transition-all peer-checked:border-white peer-checked:bg-white peer-checked:text-[#020617] group-hover:border-white/40">
+                <div className="absolute inset-0 flex items-center justify-center rounded border border-white/20 bg-white/5 text-transparent transition-all peer-checked:border-white peer-checked:bg-white peer-checked:text-black group-hover:border-white/40">
                   <Check className="h-3 w-3 stroke-[3]" />
                 </div>
               ) : (
                 <>
-                  <div className="absolute inset-0 rounded-full border-2 border-white/20 transition-all peer-checked:border-white group-hover:border-white/40" />
+                  <div className="absolute inset-0 rounded-full border border-white/20 transition-all peer-checked:border-white group-hover:border-white/40" />
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity peer-checked:opacity-100">
                     <div className="h-2 w-2 rounded-full bg-white shadow-[0_0_5px_rgba(255,255,255,0.5)]" />
                   </div>
                 </>
               )}
             </div>
-            <span className="text-base leading-snug text-slate-300 transition-colors group-hover:text-white">
+            <span className="text-[15px] leading-snug text-zinc-300 transition-colors group-hover:text-white">
               {o.label}
             </span>
           </label>
@@ -171,8 +171,8 @@ function ClientFileField({
     <div>
       {label}
       <div
-        className={`group relative mt-2 cursor-pointer overflow-hidden rounded-2xl border-2 border-dashed bg-white/[0.015] px-6 py-8 text-center transition-all hover:bg-white/[0.03] focus-within:ring-2 focus-within:ring-white/20 focus-within:ring-offset-2 focus-within:ring-offset-slate-900 ${
-          error ? "border-rose-400/50" : "border-white/10 hover:border-white/25"
+        className={`group relative mt-2 cursor-pointer overflow-hidden rounded-2xl border border-dashed bg-white/[0.01] px-6 py-8 text-center transition-all hover:bg-white/[0.02] focus-within:ring-4 focus-within:ring-white/10 ${
+          error ? "border-rose-500/50" : "border-white/10 hover:border-white/20"
         }`}
       >
         <input
@@ -245,13 +245,13 @@ function RenderField({
   const label = (
     <label
       htmlFor={field.type === "radio" ? undefined : name}
-      className="mb-3 block text-base font-semibold tracking-wide text-slate-100"
+      className="mb-2 block text-[14px] font-medium text-zinc-300"
     >
       {field.label}
       {field.required ? (
         <span className="ml-1 text-rose-400">*</span>
       ) : (
-        <span className="ml-3 text-xs font-medium uppercase tracking-wider text-slate-400">
+        <span className="ml-2 text-[12px] font-normal text-zinc-500">
           Optional
         </span>
       )}
@@ -417,6 +417,14 @@ export default function PublicRegistrationForm({
     }
   }, [state.toastKey, state.status, state.message]);
 
+  useEffect(() => {
+    if (state.status === "success") {
+      setTimeout(() => {
+        document.getElementById("registration-success-message")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 10);
+    }
+  }, [state.status]);
+
   const handleNext = () => {
     const formEl = document.getElementById("registration-form") as HTMLFormElement;
     if (formEl) {
@@ -474,7 +482,7 @@ export default function PublicRegistrationForm({
 
   if (state.status === "success") {
     return (
-      <div className="relative flex flex-col items-center justify-center overflow-hidden p-12 py-24 text-center sm:p-16">
+      <div id="registration-success-message" className="relative flex flex-col items-center justify-center overflow-hidden p-12 py-24 text-center sm:p-16">
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <div className="h-[300px] w-[300px] rounded-full bg-emerald-500/10 blur-[100px]" />
         </div>
@@ -494,13 +502,13 @@ export default function PublicRegistrationForm({
         <div className="relative mt-12 flex flex-col justify-center gap-4 w-full sm:w-auto sm:flex-row">
           <Link
             href="/#register"
-            className="theme-button inline-flex w-full items-center justify-center rounded-full px-8 py-4 text-[15px] font-semibold tracking-wide shadow-[0_0_20px_rgba(107,82,143,0.4)] transition-all hover:scale-105 sm:w-auto"
+            className="inline-flex w-full items-center justify-center rounded-xl bg-white px-8 py-3.5 text-[15px] font-medium tracking-wide text-black transition-all hover:bg-zinc-200 sm:w-auto"
           >
             Explore more events
           </Link>
           <Link
             href="/"
-            className="inline-flex w-full items-center justify-center rounded-full border border-white/10 bg-white/[0.03] px-8 py-4 text-[15px] font-semibold tracking-wide text-white backdrop-blur-md transition-all hover:bg-white/[0.08] sm:w-auto"
+            className="inline-flex w-full items-center justify-center rounded-xl border border-white/5 bg-white/5 px-8 py-3.5 text-[15px] font-medium tracking-wide text-white transition-all hover:bg-white/10 sm:w-auto"
           >
             Return to home
           </Link>
@@ -512,7 +520,7 @@ export default function PublicRegistrationForm({
   const isFormEmpty = pages[0].length === 0 && !availability.isAcceptingSubmissions;
 
   return (
-    <div className="p-6 sm:p-10 lg:p-12 relative">
+    <div className="relative">
       {isMounted && document.body && createPortal(
         <AnimatePresence>
           {validationError && (
@@ -520,9 +528,9 @@ export default function PublicRegistrationForm({
               initial={{ opacity: 0, y: 20, x: "-50%" }}
               animate={{ opacity: 1, y: 0, x: "-50%" }}
               exit={{ opacity: 0, y: 20, x: "-50%" }}
-              className="fixed bottom-6 left-1/2 z-[99999] flex w-[90%] max-w-sm items-center gap-3 rounded-2xl border border-rose-500/30 bg-[#1e0f15]/80 p-4 px-5 text-sm font-medium text-rose-200 shadow-xl shadow-rose-900/20 backdrop-blur-xl sm:bottom-10"
+              className="fixed bottom-6 left-1/2 z-[99999] flex w-[90%] max-w-sm items-center gap-3 rounded-xl border border-rose-500/20 bg-[#18181b]/90 p-4 px-5 text-[14px] font-medium text-rose-200 shadow-2xl backdrop-blur-xl sm:bottom-10"
             >
-              <AlertCircle className="h-5 w-5 shrink-0 text-rose-400" />
+              <AlertCircle className="h-5 w-5 shrink-0 text-rose-500" />
               <p className="flex-1 leading-snug">{validationError}</p>
             </motion.div>
           )}
@@ -534,20 +542,20 @@ export default function PublicRegistrationForm({
 
       {totalPages > 1 && !isFormEmpty && (
         <div className="mb-8">
-          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-widest text-slate-400">
+          <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-widest text-zinc-500">
             <span>Step {currentPage + 1} of {totalPages}</span>
             <span>{Math.round(((currentPage + 1) / totalPages) * 100)}%</span>
           </div>
-          <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/5">
+          <div className="mt-2.5 h-[3px] w-full overflow-hidden rounded-full bg-white/5">
             <div
-              className="h-full bg-emerald-400 transition-all duration-500 ease-out"
+              className="h-full bg-white transition-all duration-500 ease-out"
               style={{ width: `${((currentPage + 1) / totalPages) * 100}%` }}
             />
           </div>
         </div>
       )}
 
-      <form action={formAction} className="space-y-10" noValidate id="registration-form">
+      <form action={formAction} className="space-y-8" noValidate id="registration-form">
         <input type="hidden" name="formId" value={form.id} />
         <input type="hidden" name="slug" value={slug} />
         <div
@@ -566,18 +574,18 @@ export default function PublicRegistrationForm({
         </div>
 
         {isFormEmpty ? (
-          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-6 py-8 text-center backdrop-blur-sm">
-            <p className="text-lg font-semibold text-amber-200">{availability.label}</p>
+          <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 px-6 py-8 text-center backdrop-blur-sm">
+            <p className="text-[15px] font-medium text-amber-200">{availability.label}</p>
             {availability.description && (
-              <p className="mt-2 text-sm text-amber-300/80">{availability.description}</p>
+              <p className="mt-2 text-[14px] text-amber-300/80">{availability.description}</p>
             )}
           </div>
         ) : (
           <>
-            <div className="flex flex-col gap-y-7">
+            <div className="flex flex-col gap-y-6">
               {pages.map((pageFields, pageIndex) => (
                 <div key={`page-${pageIndex}`} className={pageIndex === currentPage ? "block" : "hidden"}>
-                  <div className="flex flex-col gap-y-7">
+                  <div className="flex flex-col gap-y-6">
                     {pageFields.map((field) => {
                       const name = `submission__${field.key}`;
                       return (
@@ -598,18 +606,18 @@ export default function PublicRegistrationForm({
 
             {/* Team Details on the last page */}
             {memberFields.length > 0 && currentPage === totalPages - 1 && (
-              <div className="relative overflow-hidden rounded-[2rem] border border-white/5 bg-white/[0.015] p-6 shadow-inner sm:p-8 mt-10">
+              <div className="relative overflow-hidden rounded-[24px] border border-white/5 bg-white/[0.01] p-6 sm:p-8 mt-10">
                 <div className="absolute left-1/4 top-0 h-96 w-96 -translate-y-1/2 rounded-full bg-white/5 opacity-40 blur-3xl" />
                 
                 <div className="relative flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
                   <div>
-                    <span className="inline-flex rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-widest text-slate-300 ring-1 ring-white/10">
+                    <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-zinc-300">
                       Team Details
                     </span>
-                    <h3 className="mt-4 text-2xl font-bold tracking-tight text-white">
+                    <h3 className="mt-4 text-2xl font-semibold tracking-tight text-white">
                       Competition Members
                     </h3>
-                    <p className="mt-2 max-w-sm text-[15px] leading-relaxed text-slate-400">
+                    <p className="mt-2 text-[14px] leading-relaxed text-zinc-400 max-w-sm">
                       Enter the information for each participant. Team size: {form.teamMinMembers}–
                       {form.teamMaxMembers}.
                     </p>
@@ -618,7 +626,7 @@ export default function PublicRegistrationForm({
                   <div className="w-full max-w-[16rem]">
                     <label
                       htmlFor="memberCount"
-                      className="mb-3 block text-base font-semibold tracking-wide text-slate-100"
+                      className="mb-2 block text-[14px] font-medium text-zinc-300"
                     >
                       How many members?
                     </label>
@@ -633,7 +641,7 @@ export default function PublicRegistrationForm({
                         { length: form.teamMaxMembers - form.teamMinMembers + 1 },
                         (_, i) => form.teamMinMembers + i,
                       ).map((v) => (
-                        <option key={v} value={v} className="bg-slate-900 text-slate-100">
+                        <option key={v} value={v} className="bg-[#09090b] text-zinc-100">
                           {v} {v === 1 ? "member" : "members"}
                         </option>
                       ))}
@@ -646,19 +654,19 @@ export default function PublicRegistrationForm({
                   </div>
                 </div>
 
-                <div className="relative mt-8 space-y-8">
+                <div className="relative mt-8 space-y-6">
                   {memberIndexes.map((i) => (
                     <div
                       key={i}
-                      className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 transition-colors hover:bg-white/[0.03] sm:p-7"
+                      className="rounded-2xl border border-white/5 bg-white/[0.02] p-5 transition-colors sm:p-7"
                     >
-                      <h4 className="flex items-center gap-3 text-lg font-semibold text-white">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-bold ring-1 ring-white/20">
+                      <h4 className="flex items-center gap-3 text-lg font-medium text-white">
+                        <span className="flex h-6 w-6 items-center justify-center rounded bg-white/10 text-[11px] font-bold ring-1 ring-white/10">
                           {i + 1}
                         </span>
                         Member {i + 1}
                       </h4>
-                      <div className="mt-6 flex flex-col gap-y-7">
+                      <div className="mt-6 flex flex-col gap-y-6">
                         {memberFields.map((field) => {
                           const name = `member__${i}__${field.key}`;
                           return (
@@ -679,14 +687,14 @@ export default function PublicRegistrationForm({
               </div>
             )}
 
-            <div className="pt-8">
-              <div className="flex flex-col items-center justify-between gap-5 sm:flex-row sm:gap-6 border-t border-white/10 pt-8">
+            <div className="pt-4">
+              <div className="flex flex-col items-center justify-between gap-5 sm:flex-row sm:gap-6 pt-6">
                 <div className="flex items-center gap-4 w-full sm:w-auto">
                   {currentPage > 0 && (
                     <button
                       type="button"
                       onClick={handlePrev}
-                      className="inline-flex w-full items-center justify-center rounded-full border border-white/10 bg-white/[0.03] px-8 py-3.5 text-[15px] font-semibold tracking-wide text-white transition-all hover:bg-white/[0.08] sm:w-auto"
+                      className="inline-flex w-full items-center justify-center rounded-xl bg-white/5 py-3.5 px-6 text-[15px] font-medium text-white transition-all hover:bg-white/10 sm:w-auto"
                     >
                       Previous
                     </button>
@@ -695,7 +703,7 @@ export default function PublicRegistrationForm({
                     <button
                       type="button"
                       onClick={handleNext}
-                      className="theme-button inline-flex w-full items-center justify-center rounded-full px-8 py-3.5 text-[15px] font-semibold tracking-wide shadow-[0_0_20px_rgba(107,82,143,0.4)] transition-all hover:scale-105 sm:w-auto"
+                      className="inline-flex w-full items-center justify-center rounded-xl bg-white text-black px-8 py-3.5 text-[15px] font-medium tracking-wide transition-all hover:bg-zinc-200 sm:w-auto"
                     >
                       Next Step
                     </button>
@@ -704,7 +712,7 @@ export default function PublicRegistrationForm({
                   )}
                 </div>
                 {!availability.isAcceptingSubmissions && (
-                  <p className="text-sm font-medium text-amber-300">
+                  <p className="text-[13px] font-medium text-amber-300">
                     This form is currently {availability.label.toLowerCase()}.
                   </p>
                 )}

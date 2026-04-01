@@ -55,59 +55,58 @@ export default async function SlugPage({ params }: PageProps) {
           <HexBackground opacity={0.3} />
         </div>
 
-        <div className="relative z-10 mx-auto max-w-3xl px-4 pt-28 pb-12 sm:px-6 sm:pt-32 sm:pb-20 lg:pt-36 lg:pb-24">
+        <div className="relative z-10 mx-auto max-w-2xl px-4 pt-24 pb-12 sm:px-6 sm:pt-32 sm:pb-20 lg:pt-36 lg:pb-24">
           {bannerUrl && (
-            <div className="mb-8 w-full overflow-hidden rounded-[2rem] border border-white/5 shadow-2xl sm:mb-12">
-              <div className="relative aspect-[21/9] w-full">
+            <div className="mb-8 w-full overflow-hidden rounded-[24px] border border-white/[0.08] shadow-2xl sm:mb-12">
+              <div className="relative aspect-[3/1] w-full">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={bannerUrl}
                   alt={form.title}
                   className="h-full w-full object-cover"
                 />
-                {/* Optional: leave a very subtle gradient or remove it if pure image is preferred */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#020617]/40 to-transparent pointer-events-none" />
               </div>
             </div>
           )}
 
-          <div className={`mb-4 sm:mb-6 ${!bannerUrl ? "text-center" : ""}`}>
-            <span
-              className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] backdrop-blur-md ${
-                availability.state === "open"
-                  ? "border-emerald-500/40 bg-emerald-500/20 text-emerald-200"
-                  : availability.state === "closed"
-                    ? "border-rose-500/40 bg-rose-500/20 text-rose-200"
-                    : "border-amber-500/40 bg-amber-500/20 text-amber-200"
-              }`}
-            >
-              {availability.label}
-            </span>
-            <h1 className={`mt-4 font-bold tracking-tight text-white ${!bannerUrl ? "text-4xl sm:text-5xl lg:text-6xl" : "text-3xl sm:text-5xl"}`}>
-              {form.title}
-            </h1>
-          </div>
+          <div className="relative overflow-hidden rounded-[24px] border border-white/[0.08] bg-[#09090b]/80 shadow-2xl backdrop-blur-2xl ring-1 ring-white/5">
+            <div className="p-6 sm:p-8 md:p-10">
+              <div className="mb-8">
+                <span
+                  className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-widest backdrop-blur-md ${
+                    availability.state === "open"
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                      : availability.state === "closed"
+                        ? "border-rose-500/30 bg-rose-500/10 text-rose-300"
+                        : "border-amber-500/30 bg-amber-500/10 text-amber-300"
+                  }`}
+                >
+                  {availability.label}
+                </span>
+                <h1 className="mt-5 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+                  {form.title}
+                </h1>
 
-          {/* Descriptions and info below banner or title */}
-          <div className="mb-10 sm:mb-12">
-            {form.description && (
-              <p className="text-lg leading-relaxed text-slate-300">
-                {form.description}
-              </p>
-            )}
-            {availability.description && (
-              <p className="mt-8 text-sm font-medium text-slate-400">
-                {availability.description}
-              </p>
-            )}
-          </div>
+                {form.description && (
+                  <p className="mt-4 text-[15px] leading-relaxed text-slate-300">
+                    {form.description}
+                  </p>
+                )}
+                {availability.description && (
+                  <p className="mt-4 text-[13px] font-medium text-slate-400">
+                    {availability.description}
+                  </p>
+                )}
+              </div>
 
-          <div className="relative z-10 overflow-hidden rounded-[2rem] border border-white/5 bg-[#030712] shadow-[0_8px_30px_rgb(0,0,0,0.4)]">
-            <PublicRegistrationForm
-              form={form}
-              availability={availability}
-              slug={slug}
-            />
+              <div className="mt-8 border-t border-white/[0.06] pt-8">
+                <PublicRegistrationForm
+                  form={form}
+                  availability={availability}
+                  slug={slug}
+                />
+              </div>
+            </div>
           </div>
         </div>
         <Footer />

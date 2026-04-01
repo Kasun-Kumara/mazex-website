@@ -87,6 +87,10 @@ export type FormDefinition = {
   confirmationEmailTemplate: string | null;
   confirmationEmailFieldId: string | null;
   confirmationNameFieldId: string | null;
+  googleSheetsSyncEnabled: boolean;
+  googleSheetsSelectedFieldIds: string[];
+  googleSheetsAdminUserId: string | null;
+  googleSheetsSheetTitle: string | null;
   teamMinMembers: number;
   teamMaxMembers: number;
   bannerFileId: string | null;
@@ -142,10 +146,58 @@ export type RegistrationOverviewItem = {
   submissionCount: number;
 };
 
+export type RegistrationOverviewTrendPoint = {
+  date: string;
+  label: string;
+  total: number;
+  competitions: number;
+  workshops: number;
+};
+
+export type RegistrationOverviewFormBreakdownPoint = {
+  formId: string;
+  label: string;
+  kind: RegistrationFormKind;
+  availabilityState: FormAvailabilityState;
+  submissions: number;
+};
+
+export type RegistrationOverviewCategoryBreakdownPoint = {
+  key: RegistrationFormKind;
+  label: string;
+  value: number;
+};
+
+export type RegistrationOverviewWeekdayPoint = {
+  weekday: string;
+  submissions: number;
+};
+
+export type RegistrationOverviewAnalyticsSummary = {
+  last7DaysSubmissions: number;
+  previous7DaysSubmissions: number;
+  averageSubmissionsPerForm: number;
+  topFormTitle: string | null;
+  topFormCount: number;
+  peakDayLabel: string | null;
+  peakDayCount: number;
+  busiestWeekday: string | null;
+  busiestWeekdayCount: number;
+};
+
+export type RegistrationOverviewAnalytics = {
+  trend: RegistrationOverviewTrendPoint[];
+  formBreakdown: RegistrationOverviewFormBreakdownPoint[];
+  kindBreakdown: RegistrationOverviewCategoryBreakdownPoint[];
+  weekdayBreakdown: RegistrationOverviewWeekdayPoint[];
+  summary: RegistrationOverviewAnalyticsSummary;
+};
+
 export type RegistrationOverview = {
   forms: RegistrationOverviewItem[];
   totalSubmissions: number;
   recentSubmissions: SubmissionDetail[];
+  analytics: RegistrationOverviewAnalytics;
 };
 
 export type SubmissionFilters = {
@@ -194,4 +246,8 @@ export function fieldTypeSupportsCaseSensitiveUnique(type: FieldType) {
   return REGISTRATION_FIELD_CASE_SENSITIVE_UNIQUE_TYPES.includes(
     type as (typeof REGISTRATION_FIELD_CASE_SENSITIVE_UNIQUE_TYPES)[number],
   );
+}
+
+export function fieldTypeSupportsGoogleSheetsSync(type: FieldType) {
+  return type !== "page_break" && type !== "file";
 }

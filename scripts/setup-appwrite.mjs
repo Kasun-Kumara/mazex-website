@@ -24,6 +24,10 @@ const FORMS_COL  = env.APPWRITE_COLLECTION_REGISTRATION_FORMS   || "registration
 const FIELDS_COL = env.APPWRITE_COLLECTION_REGISTRATION_FIELDS  || "registration_fields";
 const SUBS_COL   = env.APPWRITE_COLLECTION_REGISTRATION_SUBMISSIONS || "registration_submissions";
 const UNIQUE_VALUES_COL = env.APPWRITE_COLLECTION_REGISTRATION_UNIQUE_VALUES || "registration_unique_values";
+const GOOGLE_SHEETS_FORM_SYNCS_COL =
+  env.APPWRITE_COLLECTION_GOOGLE_SHEETS_FORM_SYNCS || "google_sheets_form_syncs";
+const GOOGLE_SHEETS_CONNECTIONS_COL =
+  env.APPWRITE_COLLECTION_GOOGLE_SHEETS_CONNECTIONS || "google_sheets_connections";
 const BUCKET_ID  = env.APPWRITE_BUCKET_FORM_BANNERS             || "form_banners";
 const FILES_BUCKET_ID = env.APPWRITE_BUCKET_REGISTRATION_FILES  || "registration_files";
 const REGISTRATION_FILE_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "pdf", "doc", "docx"];
@@ -62,7 +66,7 @@ async function ensureCollection(id, name) {
 // Create ALL attributes in parallel, ignoring 409s.
 async function createAttrs(colId, attrs) {
   await Promise.all(attrs.map(a => safe(() => {
-    if (a.t === "str")  return db.createStringAttribute( DB_ID, colId, a.key, a.size ?? 255, a.req ?? false, a.def ?? null, false);
+    if (a.t === "str")  return db.createStringAttribute( DB_ID, colId, a.key, a.size ?? 255, a.req ?? false, a.def ?? null, false, a.enc ?? false);
     if (a.t === "int")  return db.createIntegerAttribute(DB_ID, colId, a.key, a.req ?? false, a.min ?? null, a.max ?? null, a.def ?? null);
     if (a.t === "bool") return db.createBooleanAttribute(DB_ID, colId, a.key, a.req ?? false, a.def ?? false);
   })));
@@ -122,6 +126,9 @@ const formAttrs = [
   { t:"str",  key:"confirmationEmailTemplate", size:8192               },
   { t:"str",  key:"confirmationEmailFieldId", size:255                 },
   { t:"str",  key:"confirmationNameFieldId",  size:255                 },
+  { t:"bool", key:"googleSheetsSyncEnabled",                def:false },
+  { t:"str",  key:"googleSheetsAdminUserId", size:255                  },
+  { t:"str",  key:"googleSheetsSheetTitle", size:128                   },
   { t:"int",  key:"teamMinMembers", min:1, max:50, def:1  },
   { t:"int",  key:"teamMaxMembers", min:1, max:50, def:1  },
   { t:"str",  key:"bannerFileId",   size:255               },
@@ -182,11 +189,41 @@ await ensureIndex(UNIQUE_VALUES_COL, "by_form", "key", ["formId"]);
 await ensureIndex(UNIQUE_VALUES_COL, "by_field", "key", ["fieldId"]);
 await ensureIndex(UNIQUE_VALUES_COL, "unique_field_value", "unique", ["fieldId", "valueHash"]);
 
-// 5. form_banners bucket
+// 5. google_sheets_form_syncs
+console.log("\n📋  google_sheets_form_syncs");
+await ensureCollection(GOOGLE_SHEETS_FORM_SYNCS_COL, "Google Sheets Form Syncs");
+const googleSheetsFormSyncAttrs = [
+  { t:"str", key:"formId", size:255, req:true },
+  { t:"str", key:"selectedFieldIdsJson", size:2048 },
+];
+await createAttrs(GOOGLE_SHEETS_FORM_SYNCS_COL, googleSheetsFormSyncAttrs);
+await waitAvailable(
+  GOOGLE_SHEETS_FORM_SYNCS_COL,
+  googleSheetsFormSyncAttrs.map((attr) => attr.key),
+);
+await ensureIndex(GOOGLE_SHEETS_FORM_SYNCS_COL, "by_form", "unique", ["formId"]);
+
+// 6. google_sheets_connections
+console.log("\n📋  google_sheets_connections");
+await ensureCollection(GOOGLE_SHEETS_CONNECTIONS_COL, "Google Sheets Connections");
+const googleSheetsConnectionAttrs = [
+  { t:"str", key:"adminUserId", size:255, req:true },
+  { t:"str", key:"email", size:255 },
+  { t:"str", key:"refreshToken", size:4096, req:true, enc:true },
+  { t:"str", key:"spreadsheetId", size:255, req:true },
+  { t:"str", key:"spreadsheetUrl", size:2048 },
+];
+await createAttrs(GOOGLE_SHEETS_CONNECTIONS_COL, googleSheetsConnectionAttrs);
+await waitAvailable(
+  GOOGLE_SHEETS_CONNECTIONS_COL,
+  googleSheetsConnectionAttrs.map((attr) => attr.key),
+);
+
+// 7. form_banners bucket
 console.log("\n🗂️   form_banners bucket");
 await ensureBucket(BUCKET_ID, "Form Banners");
 
-// 6. registration_files bucket
+// 8. registration_files bucket
 console.log("\n🗂️   registration_files bucket");
 try {
   await storage.getBucket(FILES_BUCKET_ID);

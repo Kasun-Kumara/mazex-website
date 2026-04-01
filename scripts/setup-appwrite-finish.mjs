@@ -27,6 +27,10 @@ const DB_ID      = env.APPWRITE_DB_ID;
 const FIELDS_COL = env.APPWRITE_COLLECTION_REGISTRATION_FIELDS  || "registration_fields";
 const SUBS_COL   = env.APPWRITE_COLLECTION_REGISTRATION_SUBMISSIONS || "registration_submissions";
 const UNIQUE_VALUES_COL = env.APPWRITE_COLLECTION_REGISTRATION_UNIQUE_VALUES || "registration_unique_values";
+const GOOGLE_SHEETS_FORM_SYNCS_COL =
+  env.APPWRITE_COLLECTION_GOOGLE_SHEETS_FORM_SYNCS || "google_sheets_form_syncs";
+const GOOGLE_SHEETS_CONNECTIONS_COL =
+  env.APPWRITE_COLLECTION_GOOGLE_SHEETS_CONNECTIONS || "google_sheets_connections";
 const BUCKET_ID  = env.APPWRITE_BUCKET_FORM_BANNERS || "form_banners";
 const FILES_BUCKET_ID = env.APPWRITE_BUCKET_REGISTRATION_FILES || "registration_files";
 const REGISTRATION_FILE_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "pdf", "doc", "docx"];
@@ -55,7 +59,7 @@ async function ensureCollection(id, name) {
 
 async function createAttrs(colId, attrs) {
   await Promise.all(attrs.map((attr) => safe(() => {
-    if (attr.t === "str") return db.createStringAttribute(DB_ID, colId, attr.key, attr.size ?? 255, attr.req ?? false, attr.def ?? null, false);
+    if (attr.t === "str") return db.createStringAttribute(DB_ID, colId, attr.key, attr.size ?? 255, attr.req ?? false, attr.def ?? null, false, attr.enc ?? false);
     if (attr.t === "bool") return db.createBooleanAttribute(DB_ID, colId, attr.key, attr.req ?? false, attr.def ?? false);
   })));
   console.log(`  ✓ verified ${attrs.length} attributes on ${colId}`);
@@ -125,6 +129,21 @@ async function ensureRegistrationFilesBucket(id) {
 
 console.log("\n🔧  Finishing Appwrite setup\n");
 
+await ensureCollection(env.APPWRITE_COLLECTION_REGISTRATION_FORMS || "registration_forms", "Registration Forms");
+await createAttrs(env.APPWRITE_COLLECTION_REGISTRATION_FORMS || "registration_forms", [
+  { t:"bool", key:"googleSheetsSyncEnabled", def:false },
+  { t:"str", key:"googleSheetsAdminUserId", size:255 },
+  { t:"str", key:"googleSheetsSheetTitle", size:128 },
+]);
+await waitAvailable(
+  env.APPWRITE_COLLECTION_REGISTRATION_FORMS || "registration_forms",
+  [
+    "googleSheetsSyncEnabled",
+    "googleSheetsAdminUserId",
+    "googleSheetsSheetTitle",
+  ],
+);
+
 // Add missing field metadata attributes and indexes
 await createAttrs(FIELDS_COL, [
   { t:"str", key:"placeholder", size:512 },
@@ -149,6 +168,33 @@ await waitAvailable(UNIQUE_VALUES_COL, ["formId", "fieldId", "valueHash", "value
 await ensureIndex(UNIQUE_VALUES_COL, "by_form", "key", ["formId"]);
 await ensureIndex(UNIQUE_VALUES_COL, "by_field", "key", ["fieldId"]);
 await ensureIndex(UNIQUE_VALUES_COL, "unique_field_value", "unique", ["fieldId", "valueHash"]);
+
+await ensureCollection(GOOGLE_SHEETS_FORM_SYNCS_COL, "Google Sheets Form Syncs");
+await createAttrs(GOOGLE_SHEETS_FORM_SYNCS_COL, [
+  { t:"str", key:"formId", size:255, req:true },
+  { t:"str", key:"selectedFieldIdsJson", size:2048 },
+]);
+await waitAvailable(GOOGLE_SHEETS_FORM_SYNCS_COL, [
+  "formId",
+  "selectedFieldIdsJson",
+]);
+await ensureIndex(GOOGLE_SHEETS_FORM_SYNCS_COL, "by_form", "unique", ["formId"]);
+
+await ensureCollection(GOOGLE_SHEETS_CONNECTIONS_COL, "Google Sheets Connections");
+await createAttrs(GOOGLE_SHEETS_CONNECTIONS_COL, [
+  { t:"str", key:"adminUserId", size:255, req:true },
+  { t:"str", key:"email", size:255 },
+  { t:"str", key:"refreshToken", size:4096, req:true, enc:true },
+  { t:"str", key:"spreadsheetId", size:255, req:true },
+  { t:"str", key:"spreadsheetUrl", size:2048 },
+]);
+await waitAvailable(GOOGLE_SHEETS_CONNECTIONS_COL, [
+  "adminUserId",
+  "email",
+  "refreshToken",
+  "spreadsheetId",
+  "spreadsheetUrl",
+]);
 
 // Create form_banners bucket
 await ensureBucket(BUCKET_ID, "Form Banners");

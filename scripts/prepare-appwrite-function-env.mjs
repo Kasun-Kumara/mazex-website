@@ -10,6 +10,10 @@ const confirmationEnvPath = resolve(
   __dirname,
   "../functions/send-registration-confirmation-email/.env",
 );
+const googleSheetsEnvPath = resolve(
+  __dirname,
+  "../functions/sync-registration-to-google-sheets/.env",
+);
 
 const CONFIRMATION_REQUIRED_KEYS = [
   "REGISTRATION_CONFIRMATION_EMAIL_SMTP_HOST",
@@ -22,6 +26,11 @@ const CONFIRMATION_OPTIONAL_KEYS = [
   "REGISTRATION_CONFIRMATION_EMAIL_SMTP_USER",
   "REGISTRATION_CONFIRMATION_EMAIL_SMTP_PASS",
   "REGISTRATION_CONFIRMATION_EMAIL_REPLY_TO",
+];
+
+const GOOGLE_SHEETS_OPTIONAL_KEYS = [
+  "GOOGLE_OAUTH_CLIENT_ID",
+  "GOOGLE_OAUTH_CLIENT_SECRET",
 ];
 
 function parseEnvFile(source) {
@@ -94,6 +103,12 @@ const sharedRegistrationEnv = {
   APPWRITE_COLLECTION_REGISTRATION_UNIQUE_VALUES:
     rootEnv.APPWRITE_COLLECTION_REGISTRATION_UNIQUE_VALUES?.trim() ||
     "registration_unique_values",
+  APPWRITE_COLLECTION_GOOGLE_SHEETS_FORM_SYNCS:
+    rootEnv.APPWRITE_COLLECTION_GOOGLE_SHEETS_FORM_SYNCS?.trim() ||
+    "google_sheets_form_syncs",
+  APPWRITE_COLLECTION_GOOGLE_SHEETS_CONNECTIONS:
+    rootEnv.APPWRITE_COLLECTION_GOOGLE_SHEETS_CONNECTIONS?.trim() ||
+    "google_sheets_connections",
   APPWRITE_BUCKET_REGISTRATION_FILES:
     rootEnv.APPWRITE_BUCKET_REGISTRATION_FILES?.trim() || "registration_files",
 };
@@ -108,3 +123,14 @@ for (const key of [...CONFIRMATION_REQUIRED_KEYS, ...CONFIRMATION_OPTIONAL_KEYS]
 }
 
 writeFunctionEnv(confirmationEnvPath, confirmationFunctionEnv);
+
+const googleSheetsFunctionEnv = {
+  ...sharedRegistrationEnv,
+};
+
+for (const key of GOOGLE_SHEETS_OPTIONAL_KEYS) {
+  if (!rootEnv[key]) continue;
+  googleSheetsFunctionEnv[key] = rootEnv[key].trim();
+}
+
+writeFunctionEnv(googleSheetsEnvPath, googleSheetsFunctionEnv);

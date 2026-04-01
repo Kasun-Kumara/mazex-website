@@ -261,6 +261,10 @@ async function syncLinkedForm(
     confirmationEmailTemplate: form.confirmationEmailTemplate,
     confirmationEmailFieldId: form.confirmationEmailFieldId,
     confirmationNameFieldId: form.confirmationNameFieldId,
+    googleSheetsSyncEnabled: form.googleSheetsSyncEnabled,
+    googleSheetsSelectedFieldIds: form.googleSheetsSelectedFieldIds,
+    googleSheetsAdminUserId: form.googleSheetsAdminUserId,
+    googleSheetsSheetTitle: form.googleSheetsSheetTitle,
     teamMinMembers: form.teamMinMembers,
     teamMaxMembers: form.teamMaxMembers,
   });

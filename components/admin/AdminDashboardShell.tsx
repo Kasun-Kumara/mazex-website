@@ -28,9 +28,9 @@ const navigationItems = [
   { href: "/admin", label: "Analytics", icon: BarChart3 },
   { href: "/admin/resources", label: "Resources", icon: BookOpenText },
   { href: "/admin/events", label: "Events", icon: CalendarDays },
-  { href: "/admin/form-builder", label: "Form Builder", icon: LayoutTemplate },
   { href: "/admin/registrations", label: "Registrations", icon: ClipboardList },
   { href: "/admin/sponsors", label: "Sponsors", icon: Handshake },
+  { href: "/admin/form-builder", label: "Form Builder", icon: LayoutTemplate },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 

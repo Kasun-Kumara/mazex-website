@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Reorder } from "framer-motion";
 import {
   CheckCircle2, ExternalLink, FileImage, GripHorizontal,
@@ -24,12 +25,14 @@ import type {
   FormDefinition, FormWithFields,
 } from "@/lib/registration-types";
 import {
+  fieldTypeSupportsGoogleSheetsSync,
   fieldTypeSupportsCaseSensitiveUnique,
   fieldTypeSupportsPlaceholder,
   fieldTypeSupportsUnique,
   MAX_REGISTRATION_FORMS,
   REGISTRATION_FORM_KINDS,
 } from "@/lib/registration-types";
+import type { GoogleSheetsConnection } from "@/lib/google-sheets";
 import FormattedPickerInput from "@/components/FormattedPickerInput";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -196,18 +199,23 @@ function CreateFormPanel({ formCount, onCancel }: { formCount: number; onCancel:
 
 // ─── Banner upload ────────────────────────────────────────────────────────────
 function BannerArea({ form, bannerUrl }: { form: FormDefinition; bannerUrl: string | null }) {
-  const [uploadState, uploadDispatch] = useActionState(uploadFormBannerAction, IDLE);
-  const [deleteState, deleteDispatch] = useActionState(deleteFormBannerAction, IDLE);
+  const [, uploadDispatch] = useActionState(uploadFormBannerAction, IDLE);
+  const [, deleteDispatch] = useActionState(deleteFormBannerAction, IDLE);
   const fileRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
   return (
     <div className="relative overflow-hidden w-full border-b border-zinc-200 dark:border-zinc-800">
       {bannerUrl ? (
-        <div className="relative h-40 w-full group">
+        <div className="relative aspect-[3/1] w-full group">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={bannerUrl} alt="Banner" className="h-full w-full object-cover" />
           <div className="absolute inset-0 bg-black/40 opacity-0 transition-opacity group-hover:opacity-100" />
+          <div className="absolute top-3 left-3 opacity-0 transition-opacity group-hover:opacity-100">
+            <span className="rounded-md bg-black/50 px-2 py-1 text-[11px] font-medium text-white backdrop-blur-md">
+              Recommended: 3:1
+            </span>
+          </div>
           <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
             <form action={uploadDispatch} ref={formRef}>
               <input type="hidden" name="formId" value={form.id} />
@@ -225,13 +233,14 @@ function BannerArea({ form, bannerUrl }: { form: FormDefinition; bannerUrl: stri
           </div>
         </div>
       ) : (
-        <form action={uploadDispatch} ref={formRef}>
+        <form action={uploadDispatch} ref={formRef} className="w-full aspect-[3/1]">
           <input type="hidden" name="formId" value={form.id} />
           <input ref={fileRef} type="file" name="banner" accept="image/*" className="hidden"
             onChange={() => formRef.current?.requestSubmit()} />
           <button type="button" onClick={() => fileRef.current?.click()}
-             className="flex h-20 w-full items-center justify-center gap-2 bg-zinc-50 text-sm font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:bg-zinc-950 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-100">
-            <FileImage className="h-4 w-4" /> Add banner image
+             className="flex h-full w-full flex-col items-center justify-center gap-1.5 bg-zinc-50 text-sm font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:bg-zinc-950 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-100">
+            <span className="flex items-center gap-2"><FileImage className="h-4 w-4" /> Add banner image</span>
+            <span className="text-[11px] font-normal text-zinc-400 dark:text-zinc-500">Recommended aspect ratio: 3:1</span>
           </button>
         </form>
       )}
@@ -254,17 +263,204 @@ function SaveSettingsButton() {
   );
 }
 
-// ─── Settings Panel (collapsible) ─────────────────────────────────────────────
-function SettingsPanel({ form }: { form: FormWithFields }) {
+function getSyncableGoogleSheetsFieldIds(form: FormWithFields) {
+  return new Set(
+    form.fields
+      .filter((field) => fieldTypeSupportsGoogleSheetsSync(field.type))
+      .map((field) => field.id),
+  );
+}
+
+function SyncedFieldsDropdown({
+  fields,
+  selectedFieldIds,
+  onToggleField,
+}: {
+  fields: FieldDefinition[];
+  selectedFieldIds: string[];
+  onToggleField: (fieldId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [menuPosition, setMenuPosition] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    maxHeight: number;
+    placement: "top" | "bottom";
+  } | null>(null);
+  const canUseDom = typeof document !== "undefined";
+
+  const syncableCount = fields.filter((field) =>
+    fieldTypeSupportsGoogleSheetsSync(field.type),
+  ).length;
+
+  useEffect(() => {
+    if (!open || !canUseDom) return;
+
+    function updatePosition() {
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      const viewportPadding = 16;
+      const gap = 8;
+      const spaceBelow = window.innerHeight - rect.bottom - viewportPadding;
+      const spaceAbove = rect.top - viewportPadding;
+      const placement = spaceBelow < 220 && spaceAbove > spaceBelow ? "top" : "bottom";
+      const availableSpace = placement === "bottom" ? spaceBelow : spaceAbove;
+      const width = Math.min(rect.width, window.innerWidth - viewportPadding * 2);
+      const maxLeft = window.innerWidth - viewportPadding - width;
+
+      setMenuPosition({
+        top: placement === "bottom" ? rect.bottom + gap : rect.top - gap,
+        left: Math.min(Math.max(viewportPadding, rect.left), maxLeft),
+        width,
+        maxHeight: Math.min(360, Math.max(availableSpace - gap, 0)),
+        placement,
+      });
+    }
+
+    updatePosition();
+    const frameId = window.requestAnimationFrame(updatePosition);
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [open, canUseDom]);
+
+  useEffect(() => {
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+
+    if (open) {
+      document.addEventListener("keydown", handleEscape);
+      return () => document.removeEventListener("keydown", handleEscape);
+    }
+  }, [open]);
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between gap-3 rounded-md border border-zinc-300 bg-white px-3 py-2 text-left shadow-sm transition-colors hover:border-zinc-400 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 sm:text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:hover:border-zinc-600 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
+      >
+        <span className="min-w-0 flex-1 truncate text-zinc-900 dark:text-zinc-50 font-medium">
+          {selectedFieldIds.length > 0
+            ? `${selectedFieldIds.length} field${selectedFieldIds.length === 1 ? "" : "s"} selected`
+            : syncableCount > 0
+              ? "Select fields to sync..."
+              : "No syncable fields"}
+        </span>
+        <span className="flex items-center gap-2 shrink-0">
+          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-bold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+            {selectedFieldIds.length} / {syncableCount}
+          </span>
+          <ChevronDown
+            className={`h-4 w-4 text-zinc-400 transition-transform duration-200 ${
+              open ? "rotate-180" : ""
+            }`}
+          />
+        </span>
+      </button>
+
+      {open && canUseDom && menuPosition
+        ? createPortal(
+            <>
+              <div
+                className="fixed inset-0 z-[110]"
+                aria-hidden="true"
+                onClick={() => setOpen(false)}
+              />
+              <div
+                className={`fixed z-[120] overflow-hidden rounded-md border border-zinc-200 bg-white shadow-xl animate-in fade-in duration-200 dark:border-zinc-800 dark:bg-zinc-900 ${
+                  menuPosition.placement === "top"
+                    ? "-translate-y-full slide-in-from-bottom-2"
+                    : "slide-in-from-top-2"
+                }`}
+                style={{
+                  top: menuPosition.top,
+                  left: menuPosition.left,
+                  width: menuPosition.width,
+                }}
+              >
+                <div
+                  className="space-y-1 overflow-y-auto p-1.5 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-200 hover:scrollbar-thumb-zinc-300 dark:scrollbar-thumb-zinc-800 dark:hover:scrollbar-thumb-zinc-700"
+                  style={{ maxHeight: menuPosition.maxHeight }}
+                >
+                  {fields.map((field) => {
+                    const syncable = fieldTypeSupportsGoogleSheetsSync(field.type);
+                    const checked = selectedFieldIds.includes(field.id);
+
+                    return (
+                      <label
+                        key={field.id}
+                        className={`flex cursor-pointer select-none items-center gap-3 rounded px-2.5 py-2 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50 ${
+                          !syncable ? "cursor-not-allowed opacity-50" : ""
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={!syncable}
+                          onChange={() => onToggleField(field.id)}
+                          className="h-4 w-4 shrink-0 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900 disabled:cursor-not-allowed dark:border-zinc-600 dark:bg-zinc-950 dark:checked:bg-zinc-100 dark:checked:border-zinc-100 dark:checked:text-zinc-900"
+                        />
+                        <div className="flex min-w-0 flex-1 flex-col">
+                          <span className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                            {field.label || "Untitled field"}
+                          </span>
+                          <span className="truncate text-[10px] uppercase tracking-wider text-zinc-500">
+                            {field.scope} · {TYPE_LABELS[field.type]}
+                            {!syncable && " · Not syncable"}
+                          </span>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </>,
+            document.body,
+          )
+        : null}
+    </>
+  );
+}
+
+// ─── Settings Panel (popup) ───────────────────────────────────────────────────
+function SettingsPanel({
+  form,
+  googleSheetsConnection,
+  googleSheetsOAuthConfigured,
+}: {
+  form: FormWithFields;
+  googleSheetsConnection: GoogleSheetsConnection | null;
+  googleSheetsOAuthConfigured: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [slug, setSlug] = useState(form.slug);
+  const router = useRouter();
   const [confirmationEmailEnabled, setConfirmationEmailEnabled] = useState(
     form.confirmationEmailEnabled,
   );
   const [confirmationEmailTemplate, setConfirmationEmailTemplate] = useState(
     form.confirmationEmailTemplate ?? "",
   );
+  const [googleSheetsSyncEnabled, setGoogleSheetsSyncEnabled] = useState(
+    form.googleSheetsSyncEnabled,
+  );
+  const [googleSheetsSelectedFieldIds, setGoogleSheetsSelectedFieldIds] = useState<string[]>(() => {
+    const syncableFieldIds = getSyncableGoogleSheetsFieldIds(form);
+    return form.googleSheetsSelectedFieldIds.filter((fieldId) => syncableFieldIds.has(fieldId));
+  });
   const [settingsState, settingsDispatch] = useActionState(updateRegistrationFormSettingsAction, IDLE);
   const [deleteState, deleteDispatch] = useActionState(deleteRegistrationFormAction, IDLE);
   const st = useToast(settingsState);
@@ -276,20 +472,44 @@ function SettingsPanel({ form }: { form: FormWithFields }) {
   const nameFieldOptions = form.fields.filter(
     (field) => field.scope === "submission" && field.type === "text",
   );
+  const googleSheetsFieldOptions = form.fields.filter((field) => field.type !== "page_break");
+  const googleSheetsSettingsHref = "/admin/settings#google-sign-in";
+  const hasGoogleSheetsConnection = Boolean(
+    googleSheetsConnection || form.googleSheetsAdminUserId,
+  );
+  const canUseDom = typeof document !== "undefined";
+  const settingsTitleId = `form-settings-title-${form.id}`;
 
-  useEffect(() => {
-    setSlug(form.slug);
-    setConfirmationEmailEnabled(form.confirmationEmailEnabled);
-    setConfirmationEmailTemplate(form.confirmationEmailTemplate ?? "");
+  function openGoogleSheetsSettings() {
+    router.push(googleSheetsSettingsHref);
+  }
+
+  function closeSettingsPanel() {
+    setOpen(false);
     setConfirmDelete(false);
-  }, [
-    form.id,
-    form.slug,
-    form.confirmationEmailEnabled,
-    form.confirmationEmailTemplate,
-    form.confirmationEmailFieldId,
-    form.confirmationNameFieldId,
-  ]);
+  }
+
+  function toggleGoogleSheetsField(fieldId: string) {
+    const field = googleSheetsFieldOptions.find((candidate) => candidate.id === fieldId);
+    if (!field || !fieldTypeSupportsGoogleSheetsSync(field.type)) {
+      return;
+    }
+
+    setGoogleSheetsSelectedFieldIds((current) =>
+      current.includes(fieldId)
+        ? current.filter((currentFieldId) => currentFieldId !== fieldId)
+        : [...current, fieldId],
+    );
+  }
+
+  function handleGoogleSheetsSyncToggle() {
+    if (!hasGoogleSheetsConnection) {
+      openGoogleSheetsSettings();
+      return;
+    }
+
+    setGoogleSheetsSyncEnabled((value) => !value);
+  }
 
   const settingsFormKey = [
     form.id,
@@ -306,26 +526,98 @@ function SettingsPanel({ form }: { form: FormWithFields }) {
     form.confirmationEmailTemplate ?? "",
     form.confirmationEmailFieldId ?? "",
     form.confirmationNameFieldId ?? "",
+    form.googleSheetsSyncEnabled ? "1" : "0",
+    form.googleSheetsSelectedFieldIds.join(","),
+    form.googleSheetsAdminUserId ?? "",
+    form.googleSheetsSheetTitle ?? "",
   ].join(":");
+
+  useEffect(() => {
+    if (!open || !canUseDom) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false);
+        setConfirmDelete(false);
+      }
+    }
+
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [open, canUseDom]);
 
   return (
     <>
       {toast && <Toast state={toast} onClose={st.visible ? st.dismiss : dt.dismiss} />}
       <div className="border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
-        <button type="button" onClick={() => setOpen(o => !o)}
-          className="flex w-full items-center justify-between px-6 py-4 text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50 transition-colors">
-           <span className="flex items-center gap-2 font-semibold"><Settings2 className="h-4 w-4" /> Form settings</span>
-          <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
-        </button>
-
-        {open && (
-           <form
-            key={settingsFormKey}
-            action={settingsDispatch}
-            className="border-t border-zinc-200 px-6 pb-6 pt-4 dark:border-zinc-800 bg-white dark:bg-zinc-900"
+        <div className="flex flex-col gap-4 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+              <Settings2 className="h-4 w-4" />
+              Form settings
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:focus:ring-zinc-300"
           >
-            <input type="hidden" name="formId" value={form.id} />
-             <div className="grid gap-5 sm:grid-cols-2">
+            <Settings2 className="h-4 w-4" />
+            Open settings
+          </button>
+        </div>
+
+        {open && canUseDom
+          ? createPortal(
+              <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+                <button
+                  type="button"
+                  aria-label="Close settings"
+                  onClick={closeSettingsPanel}
+                  className="absolute inset-0 bg-zinc-950/55 backdrop-blur-sm"
+                />
+                <div
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby={settingsTitleId}
+                  className="relative z-[110] flex max-h-[calc(100vh-2rem)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_30px_80px_-30px_rgba(0,0,0,0.45)] dark:border-zinc-800 dark:bg-zinc-900 sm:max-h-[calc(100vh-3rem)]"
+                >
+                  <div className="flex items-start justify-between gap-4 border-b border-zinc-200 px-5 py-4 dark:border-zinc-800 sm:px-6">
+                    <div>
+                      <h3
+                        id={settingsTitleId}
+                        className="text-lg font-semibold text-zinc-900 dark:text-zinc-50"
+                      >
+                        Form settings
+                      </h3>
+                      <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                        Update how {form.title} behaves without leaving the builder.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={closeSettingsPanel}
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 dark:focus:ring-zinc-300"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+
+                  <form
+                    key={settingsFormKey}
+                    action={settingsDispatch}
+                    className="flex min-h-0 flex-1 flex-col"
+                  >
+                    <input type="hidden" name="formId" value={form.id} />
+                    <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+                      <div className="grid gap-5 pb-6 sm:grid-cols-2">
               <div className="sm:col-span-2">
                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Form Title</label>
                  <input name="title" defaultValue={form.title} required
@@ -483,38 +775,209 @@ function SettingsPanel({ form }: { form: FormWithFields }) {
                       className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 sm:text-sm disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
                     />
                     <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                      The user's submitted answers will automatically be appended below this text.
+                      The user&apos;s submitted answers will automatically be appended below this text.
                     </p>
                   </div>
                 </div>
               </div>
-            </div>
-
-            {settingsState.status === "error" && <p className="mt-3 text-sm text-rose-600 dark:text-rose-400">{settingsState.message}</p>}
-
-             <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-zinc-200 dark:border-zinc-800 pt-4">
-               <SaveSettingsButton />
-              {confirmDelete ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-rose-600 dark:text-rose-400 ml-2">Delete data?</span>
-                  <button
-                    type="submit"
-                    formAction={deleteDispatch}
-                    formNoValidate
-                    className="rounded-md bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-500 transition-colors"
-                  >
-                    Yes, delete
-                  </button>
-                  <button type="button" onClick={() => setConfirmDelete(false)} className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-900 transition-colors">Cancel</button>
+              <div className="sm:col-span-2 rounded-lg border border-zinc-200 bg-zinc-50/70 p-4 dark:border-zinc-800 dark:bg-zinc-950/50">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                      Google Sheets sync
+                    </label>
+                    <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                      Append each new registration to your connected spreadsheet. Every form syncs into its own sheet tab.
+                    </p>
+                  </div>
+                  <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    <span>{googleSheetsSyncEnabled ? "Enabled" : "Disabled"}</span>
+                    <button
+                      type="button"
+                      onClick={handleGoogleSheetsSyncToggle}
+                      className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${googleSheetsSyncEnabled ? "bg-zinc-900 dark:bg-zinc-100" : "bg-zinc-300 dark:bg-zinc-700"}`}
+                    >
+                      <span className={`inline-block h-4 w-4 translate-y-0.5 rounded-full bg-white shadow transition-transform ${googleSheetsSyncEnabled ? "translate-x-4 dark:bg-zinc-900" : "translate-x-0.5"}`} />
+                    </button>
+                  </label>
                 </div>
-              ) : (
-                <button type="button" onClick={() => setConfirmDelete(true)} className="flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10 transition-colors">
-                  <Trash2 className="h-4 w-4" /> Delete form
-                </button>
-              )}
+                <input
+                  type="checkbox"
+                  name="googleSheetsSyncEnabled"
+                  checked={googleSheetsSyncEnabled}
+                  onChange={(event) => {
+                    if (!hasGoogleSheetsConnection && event.target.checked) {
+                      openGoogleSheetsSettings();
+                      return;
+                    }
+
+                    setGoogleSheetsSyncEnabled(event.target.checked);
+                  }}
+                  className="sr-only"
+                />
+                <input
+                  type="hidden"
+                  name="googleSheetsSelectedFieldIdsJson"
+                  value={JSON.stringify(googleSheetsSelectedFieldIds)}
+                />
+                <div className="mt-4 space-y-4">
+                  <div className="rounded-md border border-dashed border-zinc-300 bg-white/80 p-4 dark:border-zinc-700 dark:bg-zinc-950/60">
+                    {googleSheetsConnection ? (
+                      <>
+                        <p className="text-sm text-zinc-700 dark:text-zinc-300">
+                          Google sign-in is managed from Settings. Connected as{" "}
+                          <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                            {googleSheetsConnection.email ?? "Google account"}
+                          </span>
+                          .
+                        </p>
+                        <div className="mt-3 flex flex-wrap items-center gap-3">
+                          <Link
+                            href={googleSheetsSettingsHref}
+                            className="inline-flex items-center gap-2 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                          >
+                            Manage Google sign in
+                          </Link>
+                          {googleSheetsConnection.spreadsheetUrl ? (
+                            <a
+                              href={googleSheetsConnection.spreadsheetUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 transition-colors hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+                            >
+                              Open spreadsheet
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                          ) : null}
+                        </div>
+                      </>
+                    ) : hasGoogleSheetsConnection ? (
+                      <>
+                        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                          This form is already linked to a stored Google Sheets connection. Use Settings if you need to reconnect or refresh Google access.
+                        </p>
+                        <Link
+                          href={googleSheetsSettingsHref}
+                          className="mt-3 inline-flex items-center gap-2 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                        >
+                          Open Settings
+                        </Link>
+                      </>
+                    ) : googleSheetsOAuthConfigured ? (
+                      <>
+                        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                          Connect a Google account in Settings before enabling sync.
+                        </p>
+                        <Link
+                          href={googleSheetsSettingsHref}
+                          className="mt-3 inline-flex items-center gap-2 rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                        >
+                          Go to Google sign in
+                        </Link>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm text-amber-600 dark:text-amber-400">
+                          Google OAuth is not configured yet. Add `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET` before using Sheets sync.
+                        </p>
+                        <Link
+                          href={googleSheetsSettingsHref}
+                          className="mt-3 inline-flex items-center gap-2 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                        >
+                          Open Settings
+                        </Link>
+                      </>
+                    )}
+
+                    {form.googleSheetsSheetTitle ? (
+                      <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
+                        Sheet tab: <span className="font-medium">{form.googleSheetsSheetTitle}</span>
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                      Synced fields
+                    </label>
+                    {googleSheetsFieldOptions.length > 0 ? (
+                      <SyncedFieldsDropdown
+                        fields={googleSheetsFieldOptions}
+                        selectedFieldIds={googleSheetsSelectedFieldIds}
+                        onToggleField={toggleGoogleSheetsField}
+                      />
+                    ) : (
+                      <p className="text-sm text-amber-600 dark:text-amber-400">
+                        Add form fields before enabling Google Sheets sync.
+                      </p>
+                    )}
+                    <p className="mt-2 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+                      Submission fields sync directly. Member fields are grouped together into one cell per selected column so each registration stays on a single row.
+                    </p>
+                  </div>
+
+                  {settingsState.status === "error" ? (
+                    <p className="text-sm text-rose-600 dark:text-rose-400">
+                      {settingsState.message}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
             </div>
-          </form>
-        )}
+          </div>
+
+                <div className="sticky bottom-0 border-t border-zinc-200 bg-white/95 px-5 py-4 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/95 sm:px-6">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    {confirmDelete ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-medium text-rose-600 dark:text-rose-400">
+                          Delete form data?
+                        </span>
+                        <button
+                          type="submit"
+                          formAction={deleteDispatch}
+                          formNoValidate
+                          className="rounded-md bg-rose-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-rose-500"
+                        >
+                          Yes, delete
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDelete(false)}
+                          className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDelete(true)}
+                        className="flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Delete form
+                      </button>
+                    )}
+
+                    <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+                      <button
+                        type="button"
+                        onClick={closeSettingsPanel}
+                        className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:focus:ring-zinc-300"
+                      >
+                        Cancel
+                      </button>
+                      <SaveSettingsButton />
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body,
+        )
+      : null}
       </div>
     </>
   );
@@ -571,17 +1034,13 @@ function FieldSettingsModal({
   onChange: (field: FieldDefinition) => void;
   onClose: () => void;
 }) {
-  const [mounted, setMounted] = useState(false);
   const placeholderSupported = fieldTypeSupportsPlaceholder(field.type);
   const uniqueSupported = fieldTypeSupportsUnique(field.type);
   const caseSensitiveSupported = fieldTypeSupportsCaseSensitiveUnique(field.type);
+  const canUseDom = typeof document !== "undefined";
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!mounted) return;
+    if (!canUseDom) return;
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -596,9 +1055,9 @@ function FieldSettingsModal({
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [mounted, onClose]);
+  }, [canUseDom, onClose]);
 
-  if (!mounted) return null;
+  if (!canUseDom) return null;
 
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
@@ -1072,10 +1531,18 @@ function FieldBuilder({ form }: { form: FormWithFields }) {
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
-export default function AdminRegistrationsManager({ forms, selectedForm, bannerUrl }: {
+export default function AdminRegistrationsManager({
+  forms,
+  selectedForm,
+  bannerUrl,
+  googleSheetsConnection,
+  googleSheetsOAuthConfigured,
+}: {
   forms: FormDefinition[];
   selectedForm: FormWithFields | null;
   bannerUrl: string | null;
+  googleSheetsConnection: GoogleSheetsConnection | null;
+  googleSheetsOAuthConfigured: boolean;
 }) {
   const [showCreate, setShowCreate] = useState(false);
   const canCreate = forms.length < MAX_REGISTRATION_FORMS;
@@ -1135,7 +1602,24 @@ export default function AdminRegistrationsManager({ forms, selectedForm, bannerU
           </div>
 
           {/* Settings */}
-          <SettingsPanel form={selectedForm} />
+          <SettingsPanel
+            key={[
+              selectedForm.id,
+              selectedForm.slug,
+              selectedForm.confirmationEmailEnabled ? "1" : "0",
+              selectedForm.confirmationEmailTemplate ?? "",
+              selectedForm.confirmationEmailFieldId ?? "",
+              selectedForm.confirmationNameFieldId ?? "",
+              selectedForm.googleSheetsSyncEnabled ? "1" : "0",
+              selectedForm.googleSheetsSelectedFieldIds.join(","),
+              selectedForm.googleSheetsAdminUserId ?? "",
+              selectedForm.googleSheetsSheetTitle ?? "",
+              selectedForm.fields.map((field) => `${field.id}:${field.type}`).join(","),
+            ].join(":")}
+            form={selectedForm}
+            googleSheetsConnection={googleSheetsConnection}
+            googleSheetsOAuthConfigured={googleSheetsOAuthConfigured}
+          />
         </div>
       ) : (
         <div className="mt-4 rounded-xl border border-dashed border-zinc-300 bg-white p-12 text-center dark:border-zinc-700 dark:bg-zinc-900/50">
