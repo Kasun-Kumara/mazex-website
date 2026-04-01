@@ -693,7 +693,7 @@ function SettingsPanel({
                       Confirmation email
                     </label>
                     <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                      Send the Appwrite confirmation email after a successful submission.
+                      Queue an Appwrite confirmation email after a successful submission and save the registrant as a synced contact.
                     </p>
                   </div>
                   <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">

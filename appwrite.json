@@ -572,6 +572,108 @@
                     "orders": []
                 }
             ]
+        },
+        {
+            "$id": "registration_contacts",
+            "$permissions": [],
+            "databaseId": "mazex_data",
+            "name": "Registration Contacts",
+            "enabled": true,
+            "documentSecurity": false,
+            "attributes": [
+                {
+                    "key": "email",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 255,
+                    "encrypt": false,
+                    "default": null
+                },
+                {
+                    "key": "name",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 255,
+                    "encrypt": false,
+                    "default": null
+                },
+                {
+                    "key": "userId",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 255,
+                    "encrypt": false,
+                    "default": null
+                },
+                {
+                    "key": "targetId",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 255,
+                    "encrypt": false,
+                    "default": null
+                },
+                {
+                    "key": "lastFormId",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 255,
+                    "encrypt": false,
+                    "default": null
+                },
+                {
+                    "key": "lastFormTitle",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 255,
+                    "encrypt": false,
+                    "default": null
+                },
+                {
+                    "key": "lastSubmissionId",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 255,
+                    "encrypt": false,
+                    "default": null
+                },
+                {
+                    "key": "lastSubmittedAt",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 64,
+                    "encrypt": false,
+                    "default": null
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "email_unique",
+                    "type": "unique",
+                    "attributes": ["email"],
+                    "orders": []
+                },
+                {
+                    "key": "user_unique",
+                    "type": "unique",
+                    "attributes": ["userId"],
+                    "orders": []
+                },
+                {
+                    "key": "target_unique",
+                    "type": "unique",
+                    "attributes": ["targetId"],
+                    "orders": []
+                }
+            ]
         }
     ],
     "buckets": [
@@ -715,7 +817,14 @@
                 "databases.read",
                 "databases.write",
                 "documents.read",
-                "documents.write"
+                "documents.write",
+                "users.read",
+                "users.write",
+                "targets.read",
+                "targets.write",
+                "messages.write",
+                "topics.write",
+                "subscribers.write"
             ],
             "schedule": "",
             "timeout": 30,

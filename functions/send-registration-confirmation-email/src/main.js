@@ -1,8 +1,23 @@
-import { Client, Databases, Query, Storage } from "node-appwrite";
-import nodemailer from "nodemailer";
+import { createHash } from "node:crypto";
+import {
+  Client,
+  Databases,
+  ID,
+  Messaging,
+  Query,
+  Storage,
+  Users,
+} from "node-appwrite";
 
 const DEFAULT_SUBMISSIONS_COLLECTION_ID = "registration_submissions";
 const DEFAULT_REGISTRATION_FILES_BUCKET_ID = "registration_files";
+const DEFAULT_CONTACTS_COLLECTION_ID = "registration_contacts";
+const DEFAULT_CONTACTS_TOPIC_ID = "registration_contacts";
+const DEFAULT_CONTACTS_TOPIC_NAME = "MazeX Registration Contacts";
+const PRIMARY_EMAIL_TARGET_ID = "primary_email";
+const CONTACT_ID_PREFIX = "contact_";
+const CONTACT_SUBSCRIBER_PREFIX = "sub_";
+const CONTACT_HASH_LENGTH = 28;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 
 function getHeader(req, key) {
@@ -41,6 +56,19 @@ function parseJson(value, fallback) {
   }
 }
 
+function trim(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function trimNullable(value) {
+  const normalized = trim(value);
+  return normalized || null;
+}
+
+function normalizeEmailAddress(value) {
+  return trim(value).toLowerCase();
+}
+
 function normalizeAnswerValue(value) {
   if (typeof value === "string") {
     const normalized = value.trim();
@@ -54,10 +82,6 @@ function normalizeAnswerValue(value) {
   return "";
 }
 
-function isTruthy(value) {
-  return ["1", "true", "yes", "on"].includes(value.toLowerCase());
-}
-
 function getRequiredEnv(key) {
   const value = process.env[key]?.trim();
   if (!value) {
@@ -66,32 +90,32 @@ function getRequiredEnv(key) {
   return value;
 }
 
-function createDatabasesService(req) {
+function createClient(req) {
   const key = String(getHeader(req, "x-appwrite-key") || "").trim();
   if (!key) {
     throw new Error("Missing x-appwrite-key header for Appwrite function execution.");
   }
 
-  const client = new Client()
+  return new Client()
     .setEndpoint(getRequiredEnv("APPWRITE_FUNCTION_API_ENDPOINT"))
     .setProject(getRequiredEnv("APPWRITE_FUNCTION_PROJECT_ID"))
     .setKey(key);
+}
 
-  return new Databases(client);
+function createDatabasesService(req) {
+  return new Databases(createClient(req));
 }
 
 function createStorageService(req) {
-  const key = String(getHeader(req, "x-appwrite-key") || "").trim();
-  if (!key) {
-    throw new Error("Missing x-appwrite-key header for Appwrite function execution.");
-  }
+  return new Storage(createClient(req));
+}
 
-  const client = new Client()
-    .setEndpoint(getRequiredEnv("APPWRITE_FUNCTION_API_ENDPOINT"))
-    .setProject(getRequiredEnv("APPWRITE_FUNCTION_PROJECT_ID"))
-    .setKey(key);
+function createUsersService(req) {
+  return new Users(createClient(req));
+}
 
-  return new Storage(client);
+function createMessagingService(req) {
+  return new Messaging(createClient(req));
 }
 
 function getRegistrationFilesBucketId() {
@@ -101,32 +125,22 @@ function getRegistrationFilesBucketId() {
   );
 }
 
-function getTransportOptions() {
-  const host = getRequiredEnv("REGISTRATION_CONFIRMATION_EMAIL_SMTP_HOST");
-  const port = Number(getRequiredEnv("REGISTRATION_CONFIRMATION_EMAIL_SMTP_PORT"));
-  const secureValue =
-    process.env.REGISTRATION_CONFIRMATION_EMAIL_SMTP_SECURE?.trim() || "";
-  const username = process.env.REGISTRATION_CONFIRMATION_EMAIL_SMTP_USER?.trim() || "";
-  const password = process.env.REGISTRATION_CONFIRMATION_EMAIL_SMTP_PASS?.trim() || "";
+function getContactsCollectionId() {
+  return (
+    process.env.APPWRITE_COLLECTION_REGISTRATION_CONTACTS?.trim() ||
+    DEFAULT_CONTACTS_COLLECTION_ID
+  );
+}
 
-  if (!Number.isInteger(port) || port <= 0) {
-    throw new Error(
-      "REGISTRATION_CONFIRMATION_EMAIL_SMTP_PORT must be a positive integer.",
-    );
-  }
+function getContactsTopicId() {
+  return (
+    process.env.APPWRITE_MESSAGING_CONTACTS_TOPIC_ID?.trim() ||
+    DEFAULT_CONTACTS_TOPIC_ID
+  );
+}
 
-  if ((username && !password) || (!username && password)) {
-    throw new Error(
-      "SMTP auth requires both REGISTRATION_CONFIRMATION_EMAIL_SMTP_USER and REGISTRATION_CONFIRMATION_EMAIL_SMTP_PASS.",
-    );
-  }
-
-  return {
-    host,
-    port,
-    secure: secureValue ? isTruthy(secureValue) : port === 465,
-    auth: username ? { user: username, pass: password } : undefined,
-  };
+function getEmailProviderId() {
+  return process.env.APPWRITE_MESSAGING_EMAIL_PROVIDER_ID?.trim() || "";
 }
 
 function escapeHtml(value) {
@@ -136,6 +150,23 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function buildScopedId(prefix, email) {
+  const hash = createHash("sha256").update(email).digest("hex");
+  return `${prefix}${hash.slice(0, CONTACT_HASH_LENGTH)}`;
+}
+
+function getContactDocumentId(email) {
+  return buildScopedId(CONTACT_ID_PREFIX, email);
+}
+
+function getContactUserId(email) {
+  return buildScopedId(CONTACT_ID_PREFIX, email);
+}
+
+function getContactSubscriberId(email) {
+  return buildScopedId(CONTACT_SUBSCRIBER_PREFIX, email);
 }
 
 function getStoredFileId(value) {
@@ -250,21 +281,28 @@ function buildEmail(
   const defaultText = [
     "Your MazeX registration was received successfully.",
     formLine,
-    "Our team will contact you if any additional steps are required."
-  ].filter(Boolean).join("\n");
+    "Our team will contact you if any additional steps are required.",
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   const templateText = customTemplateText || defaultText;
 
-  // Build inputs text
-  let inputsText = [];
-  let inputsHtml = [];
+  const inputsText = [];
+  const inputsHtml = [];
 
-  const submissionFields = fields.filter(f => f.scope === "submission" && f.type !== "page_break");
-  const memberFields = fields.filter(f => f.scope === "member" && f.type !== "page_break");
+  const submissionFields = fields.filter(
+    (field) => field.scope === "submission" && field.type !== "page_break",
+  );
+  const memberFields = fields.filter(
+    (field) => field.scope === "member" && field.type !== "page_break",
+  );
 
   if (submissionFields.length > 0) {
     inputsText.push("--- Submission Details ---");
-    inputsHtml.push(`<h3 style="margin-top: 32px; margin-bottom: 16px; color: #18181b; font-size: 18px; font-weight: 600; border-bottom: 1px solid #e4e4e7; padding-bottom: 8px;">Submission Details</h3>`);
+    inputsHtml.push(
+      `<h3 style="margin-top: 32px; margin-bottom: 16px; color: #18181b; font-size: 18px; font-weight: 600; border-bottom: 1px solid #e4e4e7; padding-bottom: 8px;">Submission Details</h3>`,
+    );
 
     inputsHtml.push(`<table style="width: 100%; border-collapse: collapse;">`);
     for (const field of submissionFields) {
@@ -289,12 +327,18 @@ function buildEmail(
     inputsText.push("");
     inputsText.push("--- Team Members ---");
 
-    inputsHtml.push(`<h3 style="margin-top: 32px; margin-bottom: 16px; color: #18181b; font-size: 18px; font-weight: 600; border-bottom: 1px solid #e4e4e7; padding-bottom: 8px;">Team Members</h3>`);
+    inputsHtml.push(
+      `<h3 style="margin-top: 32px; margin-bottom: 16px; color: #18181b; font-size: 18px; font-weight: 600; border-bottom: 1px solid #e4e4e7; padding-bottom: 8px;">Team Members</h3>`,
+    );
 
     memberAnswers.forEach((member, index) => {
       inputsText.push(`Member ${index + 1}:`);
-      inputsHtml.push(`<div style="margin-bottom: 24px; background-color: #fafafa; border: 1px solid #f4f4f5; border-radius: 8px; padding: 16px;">`);
-      inputsHtml.push(`<h4 style="margin: 0 0 12px 0; color: #52525b; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em;">Member ${index + 1}</h4>`);
+      inputsHtml.push(
+        `<div style="margin-bottom: 24px; background-color: #fafafa; border: 1px solid #f4f4f5; border-radius: 8px; padding: 16px;">`,
+      );
+      inputsHtml.push(
+        `<h4 style="margin: 0 0 12px 0; color: #52525b; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em;">Member ${index + 1}</h4>`,
+      );
       inputsHtml.push(`<table style="width: 100%; border-collapse: collapse;">`);
 
       for (const field of memberFields) {
@@ -317,7 +361,13 @@ function buildEmail(
   }
 
   const templateHtml = customTemplateText
-    ? customTemplateText.split('\n').map(line => `<p style="margin-top: 0; margin-bottom: 16px; line-height: 1.6; color: #3f3f46;">${escapeHtml(line)}</p>`).join("")
+    ? customTemplateText
+        .split("\n")
+        .map(
+          (line) =>
+            `<p style="margin-top: 0; margin-bottom: 16px; line-height: 1.6; color: #3f3f46;">${escapeHtml(line)}</p>`,
+        )
+        .join("")
     : `<p style="margin-top: 0; margin-bottom: 16px; line-height: 1.6; color: #3f3f46;">Your MazeX registration was received successfully.</p>
        ${formLine ? `<p style="margin-top: 0; margin-bottom: 16px; line-height: 1.6; color: #3f3f46;"><strong>${escapeHtml(formLine)}</strong></p>` : ""}
        <p style="margin-top: 0; margin-bottom: 16px; line-height: 1.6; color: #3f3f46;">Our team will contact you if any additional steps are required.</p>`;
@@ -338,13 +388,13 @@ function buildEmail(
       </div>
       <div style="padding: 40px;">
         <p style="margin-top: 0; margin-bottom: 24px; font-size: 16px; color: #18181b; font-weight: 600;">${escapeHtml(greeting)}</p>
-        
+
         <div style="margin-bottom: 32px;">
           ${templateHtml}
         </div>
-        
+
         ${inputsHtml.join("")}
-        
+
         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #e4e4e7;">
           <p style="margin: 0; color: #71717a; font-size: 14px; line-height: 1.6;">
             Thank you,<br/>
@@ -364,6 +414,7 @@ function buildEmail(
     subject: formTitle
       ? `MazeX registration confirmed: ${formTitle}`
       : "MazeX registration confirmed",
+    html: finalHtml,
     text: [
       greeting,
       "",
@@ -373,8 +424,264 @@ function buildEmail(
       "",
       "Thank you,",
       "MazeX Team",
-    ].filter(Boolean).join("\n"),
-    html: finalHtml,
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  };
+}
+
+async function lookupUserByEmail(req, email) {
+  const result = await createUsersService(req).list({
+    queries: [Query.equal("email", email), Query.limit(1)],
+  });
+
+  return result.users?.[0] ?? null;
+}
+
+async function ensureContactUser(req, params) {
+  const normalizedEmail = normalizeEmailAddress(params.email);
+  const users = createUsersService(req);
+  const candidateUserIds = [...new Set([
+    trim(params.existingUserId),
+    getContactUserId(normalizedEmail),
+  ].filter(Boolean))];
+
+  let user = null;
+
+  for (const userId of candidateUserIds) {
+    try {
+      user = await users.get({ userId });
+      break;
+    } catch (error) {
+      if (!(error instanceof Error) || error.code !== 404) {
+        throw error;
+      }
+    }
+  }
+
+  if (!user) {
+    try {
+      user = await users.create({
+        userId: getContactUserId(normalizedEmail),
+        email: normalizedEmail,
+        name: params.name || undefined,
+      });
+    } catch (error) {
+      if (!(error instanceof Error) || error.code !== 409) {
+        throw error;
+      }
+
+      user = await lookupUserByEmail(req, normalizedEmail);
+      if (!user) {
+        throw error;
+      }
+    }
+  }
+
+  if (!user) {
+    throw new Error(`Unable to create or find a messaging user for ${normalizedEmail}.`);
+  }
+
+  if (normalizeEmailAddress(user.email) !== normalizedEmail) {
+    user = await users.updateEmail({
+      userId: user.$id,
+      email: normalizedEmail,
+    });
+  }
+
+  if (params.name && trim(user.name) !== params.name) {
+    user = await users.updateName({
+      userId: user.$id,
+      name: params.name,
+    });
+  }
+
+  return user;
+}
+
+async function ensureContactTarget(req, params) {
+  const normalizedEmail = normalizeEmailAddress(params.email);
+  const providerId = getEmailProviderId();
+  const users = createUsersService(req);
+  const targets = await users.listTargets({
+    userId: params.userId,
+    queries: [Query.limit(100)],
+  });
+  const emailTargets = (targets.targets ?? []).filter(
+    (target) => target.providerType === "email",
+  );
+  const fallbackTargetName = params.name || normalizedEmail;
+
+  const existingTarget =
+    emailTargets.find((target) => target.$id === trim(params.existingTargetId)) ||
+    emailTargets.find(
+      (target) => normalizeEmailAddress(target.identifier) === normalizedEmail,
+    ) ||
+    emailTargets[0] ||
+    null;
+
+  if (!existingTarget) {
+    try {
+      return await users.createTarget({
+        userId: params.userId,
+        targetId: trim(params.existingTargetId) || PRIMARY_EMAIL_TARGET_ID,
+        providerType: "email",
+        identifier: normalizedEmail,
+        providerId: providerId || undefined,
+        name: fallbackTargetName,
+      });
+    } catch (error) {
+      if (!(error instanceof Error) || error.code !== 409) {
+        throw error;
+      }
+
+      const refreshedTargets = await users.listTargets({
+        userId: params.userId,
+        queries: [Query.limit(100)],
+      });
+      const resolvedTarget = (refreshedTargets.targets ?? []).find(
+        (target) => target.providerType === "email",
+      );
+
+      if (!resolvedTarget) {
+        throw error;
+      }
+
+      return resolvedTarget;
+    }
+  }
+
+  const needsIdentifierUpdate =
+    normalizeEmailAddress(existingTarget.identifier) !== normalizedEmail;
+  const needsNameUpdate = trim(existingTarget.name) !== fallbackTargetName;
+  const needsProviderUpdate =
+    Boolean(providerId) && trim(existingTarget.providerId) !== providerId;
+
+  if (!needsIdentifierUpdate && !needsNameUpdate && !needsProviderUpdate) {
+    return existingTarget;
+  }
+
+  return users.updateTarget({
+    userId: params.userId,
+    targetId: existingTarget.$id,
+    identifier: normalizedEmail,
+    providerId: providerId || undefined,
+    name: fallbackTargetName,
+  });
+}
+
+async function ensureContactsTopic(req) {
+  const messaging = createMessagingService(req);
+  const topicId = getContactsTopicId();
+
+  try {
+    await messaging.createTopic({
+      topicId,
+      name: DEFAULT_CONTACTS_TOPIC_NAME,
+    });
+  } catch (error) {
+    if (!(error instanceof Error) || error.code !== 409) {
+      throw error;
+    }
+  }
+
+  return topicId;
+}
+
+async function ensureContactSubscription(req, email, targetId) {
+  const messaging = createMessagingService(req);
+  const topicId = await ensureContactsTopic(req);
+
+  try {
+    await messaging.createSubscriber({
+      topicId,
+      subscriberId: getContactSubscriberId(email),
+      targetId,
+    });
+  } catch (error) {
+    if (!(error instanceof Error) || error.code !== 409) {
+      throw error;
+    }
+  }
+}
+
+async function getExistingContactDocument(req, email) {
+  const databases = createDatabasesService(req);
+  const databaseId = getRequiredEnv("APPWRITE_DB_ID");
+  const collectionId = getContactsCollectionId();
+
+  try {
+    return await databases.getDocument(
+      databaseId,
+      collectionId,
+      getContactDocumentId(email),
+    );
+  } catch (error) {
+    if (!(error instanceof Error) || error.code !== 404) {
+      throw error;
+    }
+
+    return null;
+  }
+}
+
+async function upsertContactDocument(req, params) {
+  const databases = createDatabasesService(req);
+  const databaseId = getRequiredEnv("APPWRITE_DB_ID");
+  const collectionId = getContactsCollectionId();
+  const documentId = getContactDocumentId(params.email);
+  const data = {
+    email: params.email,
+    name: params.name,
+    userId: params.userId,
+    targetId: params.targetId,
+    lastFormId: params.lastFormId,
+    lastFormTitle: params.lastFormTitle,
+    lastSubmissionId: params.lastSubmissionId,
+    lastSubmittedAt: params.lastSubmittedAt,
+  };
+
+  try {
+    return await databases.updateDocument(databaseId, collectionId, documentId, data);
+  } catch (error) {
+    if (!(error instanceof Error) || error.code !== 404) {
+      throw error;
+    }
+  }
+
+  return databases.createDocument(databaseId, collectionId, documentId, data);
+}
+
+async function syncRegistrationContact(req, params) {
+  const normalizedEmail = normalizeEmailAddress(params.email);
+  const existingContact = await getExistingContactDocument(req, normalizedEmail);
+  const user = await ensureContactUser(req, {
+    email: normalizedEmail,
+    name: params.name,
+    existingUserId: trim(existingContact?.userId),
+  });
+  const target = await ensureContactTarget(req, {
+    userId: user.$id,
+    email: normalizedEmail,
+    name: params.name,
+    existingTargetId: trim(existingContact?.targetId),
+  });
+
+  await ensureContactSubscription(req, normalizedEmail, target.$id);
+  await upsertContactDocument(req, {
+    email: normalizedEmail,
+    name: params.name || trimNullable(user.name),
+    userId: user.$id,
+    targetId: target.$id,
+    lastFormId: params.lastFormId,
+    lastFormTitle: params.lastFormTitle,
+    lastSubmissionId: params.lastSubmissionId,
+    lastSubmittedAt: params.lastSubmittedAt,
+  });
+
+  return {
+    email: normalizedEmail,
+    targetId: target.$id,
   };
 }
 
@@ -407,6 +714,7 @@ async function sendRegistrationConfirmationEmail(context) {
   }
 
   const databases = createDatabasesService(req);
+  const messaging = createMessagingService(req);
   const databaseId = getRequiredEnv("APPWRITE_DB_ID");
   const formsCollectionId = getRequiredEnv("APPWRITE_COLLECTION_REGISTRATION_FORMS");
   const fieldsCollectionId = getRequiredEnv("APPWRITE_COLLECTION_REGISTRATION_FIELDS");
@@ -447,7 +755,7 @@ async function sendRegistrationConfirmationEmail(context) {
     parsedAnswers && typeof parsedAnswers === "object" && !Array.isArray(parsedAnswers)
       ? parsedAnswers
       : {};
-  const recipientEmail = normalizeAnswerValue(answers[emailField.key]);
+  const recipientEmail = normalizeEmailAddress(answers[emailField.key]);
   if (!recipientEmail) {
     log("Skipping confirmation email because the submission has no configured email value.");
     return res.json({ ok: true, skipped: "missing_recipient_email" });
@@ -458,12 +766,14 @@ async function sendRegistrationConfirmationEmail(context) {
     return res.json({ ok: true, skipped: "invalid_recipient_email" });
   }
 
-  const recipientName = normalizeAnswerValue(answers[nameField.key]);
-  const formTitle = typeof form.title === "string" ? form.title.trim() : "";
-  const customTemplateText = typeof form.confirmationEmailTemplate === "string" ? form.confirmationEmailTemplate.trim() : "";
+  const recipientName = trimNullable(answers[nameField.key]);
+  const formTitle = trim(form.title);
+  const customTemplateText = trim(form.confirmationEmailTemplate);
   const parsedMemberAnswers = parseJson(payload.memberAnswersJson, []);
   const memberAnswers = Array.isArray(parsedMemberAnswers) ? parsedMemberAnswers : [];
-  const sortedFields = [...fieldsResult.documents].sort((a, b) => a.sortOrder - b.sortOrder);
+  const sortedFields = [...fieldsResult.documents].sort(
+    (a, b) => a.sortOrder - b.sortOrder,
+  );
   const fileNamesById = await resolveUploadedFileNames(
     req,
     sortedFields,
@@ -471,35 +781,39 @@ async function sendRegistrationConfirmationEmail(context) {
     memberAnswers,
     log,
   );
+  const contact = await syncRegistrationContact(req, {
+    email: recipientEmail,
+    name: recipientName,
+    lastFormId: formId,
+    lastFormTitle: formTitle || null,
+    lastSubmissionId: trim(payload.$id),
+    lastSubmittedAt: trim(payload.$createdAt),
+  });
+  const email = buildEmail(
+    recipientName,
+    formTitle,
+    customTemplateText,
+    sortedFields,
+    answers,
+    memberAnswers,
+    fileNamesById,
+  );
 
   try {
-    const transporter = nodemailer.createTransport(getTransportOptions());
-    const email = buildEmail(
-      recipientName,
-      formTitle,
-      customTemplateText,
-      sortedFields,
-      answers,
-      memberAnswers,
-      fileNamesById,
-    );
-
-    await transporter.sendMail({
-      from: getRequiredEnv("REGISTRATION_CONFIRMATION_EMAIL_FROM"),
-      to: recipientEmail,
-      replyTo:
-        process.env.REGISTRATION_CONFIRMATION_EMAIL_REPLY_TO?.trim() || undefined,
+    await messaging.createEmail({
+      messageId: ID.unique(),
       subject: email.subject,
-      text: email.text,
-      html: email.html,
+      content: email.html,
+      targets: [contact.targetId],
+      html: true,
     });
 
-    log(`Sent registration confirmation to ${recipientEmail}`);
+    log(`Queued registration confirmation to ${contact.email}`);
     return res.json({ ok: true });
   } catch (sendError) {
     const message =
-      sendError instanceof Error ? sendError.message : "Unknown email delivery error.";
-    error(`Failed to send registration confirmation email: ${message}`);
+      sendError instanceof Error ? sendError.message : "Unknown Appwrite Messaging error.";
+    error(`Failed to queue registration confirmation email: ${message}`);
     throw sendError;
   }
 }

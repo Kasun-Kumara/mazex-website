@@ -24,6 +24,8 @@ const FORMS_COL  = env.APPWRITE_COLLECTION_REGISTRATION_FORMS   || "registration
 const FIELDS_COL = env.APPWRITE_COLLECTION_REGISTRATION_FIELDS  || "registration_fields";
 const SUBS_COL   = env.APPWRITE_COLLECTION_REGISTRATION_SUBMISSIONS || "registration_submissions";
 const UNIQUE_VALUES_COL = env.APPWRITE_COLLECTION_REGISTRATION_UNIQUE_VALUES || "registration_unique_values";
+const CONTACTS_COL =
+  env.APPWRITE_COLLECTION_REGISTRATION_CONTACTS || "registration_contacts";
 const GOOGLE_SHEETS_FORM_SYNCS_COL =
   env.APPWRITE_COLLECTION_GOOGLE_SHEETS_FORM_SYNCS || "google_sheets_form_syncs";
 const GOOGLE_SHEETS_CONNECTIONS_COL =
@@ -190,6 +192,25 @@ await ensureIndex(UNIQUE_VALUES_COL, "by_field", "key", ["fieldId"]);
 await ensureIndex(UNIQUE_VALUES_COL, "unique_field_value", "unique", ["fieldId", "valueHash"]);
 
 // 5. google_sheets_form_syncs
+console.log("\n📋  registration_contacts");
+await ensureCollection(CONTACTS_COL, "Registration Contacts");
+const contactAttrs = [
+  { t:"str", key:"email", size:255, req:true },
+  { t:"str", key:"name", size:255 },
+  { t:"str", key:"userId", size:255, req:true },
+  { t:"str", key:"targetId", size:255, req:true },
+  { t:"str", key:"lastFormId", size:255 },
+  { t:"str", key:"lastFormTitle", size:255 },
+  { t:"str", key:"lastSubmissionId", size:255 },
+  { t:"str", key:"lastSubmittedAt", size:64 },
+];
+await createAttrs(CONTACTS_COL, contactAttrs);
+await waitAvailable(CONTACTS_COL, contactAttrs.map((attr) => attr.key));
+await ensureIndex(CONTACTS_COL, "email_unique", "unique", ["email"]);
+await ensureIndex(CONTACTS_COL, "user_unique", "unique", ["userId"]);
+await ensureIndex(CONTACTS_COL, "target_unique", "unique", ["targetId"]);
+
+// 6. google_sheets_form_syncs
 console.log("\n📋  google_sheets_form_syncs");
 await ensureCollection(GOOGLE_SHEETS_FORM_SYNCS_COL, "Google Sheets Form Syncs");
 const googleSheetsFormSyncAttrs = [
@@ -203,7 +224,7 @@ await waitAvailable(
 );
 await ensureIndex(GOOGLE_SHEETS_FORM_SYNCS_COL, "by_form", "unique", ["formId"]);
 
-// 6. google_sheets_connections
+// 7. google_sheets_connections
 console.log("\n📋  google_sheets_connections");
 await ensureCollection(GOOGLE_SHEETS_CONNECTIONS_COL, "Google Sheets Connections");
 const googleSheetsConnectionAttrs = [
@@ -219,11 +240,11 @@ await waitAvailable(
   googleSheetsConnectionAttrs.map((attr) => attr.key),
 );
 
-// 7. form_banners bucket
+// 8. form_banners bucket
 console.log("\n🗂️   form_banners bucket");
 await ensureBucket(BUCKET_ID, "Form Banners");
 
-// 8. registration_files bucket
+// 9. registration_files bucket
 console.log("\n🗂️   registration_files bucket");
 try {
   await storage.getBucket(FILES_BUCKET_ID);

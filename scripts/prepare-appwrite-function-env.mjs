@@ -15,17 +15,9 @@ const googleSheetsEnvPath = resolve(
   "../functions/sync-registration-to-google-sheets/.env",
 );
 
-const CONFIRMATION_REQUIRED_KEYS = [
-  "REGISTRATION_CONFIRMATION_EMAIL_SMTP_HOST",
-  "REGISTRATION_CONFIRMATION_EMAIL_SMTP_PORT",
-  "REGISTRATION_CONFIRMATION_EMAIL_SMTP_SECURE",
-  "REGISTRATION_CONFIRMATION_EMAIL_FROM",
-];
-
 const CONFIRMATION_OPTIONAL_KEYS = [
-  "REGISTRATION_CONFIRMATION_EMAIL_SMTP_USER",
-  "REGISTRATION_CONFIRMATION_EMAIL_SMTP_PASS",
-  "REGISTRATION_CONFIRMATION_EMAIL_REPLY_TO",
+  "APPWRITE_MESSAGING_EMAIL_PROVIDER_ID",
+  "APPWRITE_MESSAGING_CONTACTS_TOPIC_ID",
 ];
 
 const GOOGLE_SHEETS_OPTIONAL_KEYS = [
@@ -81,16 +73,6 @@ const fileEnv = existsSync(rootEnvPath)
   : {};
 const rootEnv = { ...fileEnv, ...process.env };
 
-const missingConfirmationKeys = CONFIRMATION_REQUIRED_KEYS.filter(
-  (key) => !rootEnv[key]?.trim(),
-);
-if (missingConfirmationKeys.length > 0) {
-  console.error(
-    `Missing required env values for the registration confirmation function: ${missingConfirmationKeys.join(", ")}`,
-  );
-  process.exit(1);
-}
-
 const sharedRegistrationEnv = {
   APPWRITE_DB_ID: rootEnv.APPWRITE_DB_ID?.trim() || "mazex_data",
   APPWRITE_COLLECTION_REGISTRATION_FORMS:
@@ -103,6 +85,9 @@ const sharedRegistrationEnv = {
   APPWRITE_COLLECTION_REGISTRATION_UNIQUE_VALUES:
     rootEnv.APPWRITE_COLLECTION_REGISTRATION_UNIQUE_VALUES?.trim() ||
     "registration_unique_values",
+  APPWRITE_COLLECTION_REGISTRATION_CONTACTS:
+    rootEnv.APPWRITE_COLLECTION_REGISTRATION_CONTACTS?.trim() ||
+    "registration_contacts",
   APPWRITE_COLLECTION_GOOGLE_SHEETS_FORM_SYNCS:
     rootEnv.APPWRITE_COLLECTION_GOOGLE_SHEETS_FORM_SYNCS?.trim() ||
     "google_sheets_form_syncs",
@@ -117,7 +102,7 @@ const confirmationFunctionEnv = {
   ...sharedRegistrationEnv,
 };
 
-for (const key of [...CONFIRMATION_REQUIRED_KEYS, ...CONFIRMATION_OPTIONAL_KEYS]) {
+for (const key of CONFIRMATION_OPTIONAL_KEYS) {
   if (!rootEnv[key]) continue;
   confirmationFunctionEnv[key] = rootEnv[key].trim();
 }
