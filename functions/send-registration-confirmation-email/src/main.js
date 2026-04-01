@@ -154,8 +154,8 @@ function getEmailAssetUrls() {
   return {
     mazexLogo: `${baseUrl}/mazex-logo-white/view?${projectParam}`,
     mazexLogoWhite: `${baseUrl}/mazex-logo-white/view?${projectParam}`,
-    knurdzPoweredBy: `${baseUrl}/knurdz-poweredby/view?${projectParam}`,
-    knurdzPoweredByLight: `${baseUrl}/knurdz-poweredby-light/view?${projectParam}`,
+    knurdzPoweredBy: `${baseUrl}/69cd674d002c1c6adb7d/view?${projectParam}`,
+    knurdzPoweredByLight: `${baseUrl}/69cd674d002c1c6adb7d/view?${projectParam}`,
   };
 }
 
@@ -347,17 +347,22 @@ function buildEmail(
     });
   }
 
+  const templateParagraphStyles =
+    "margin: 0 0 16px; line-height: 1.7; font-size: 15px; color: #3f3f46;";
+
   const templateHtml = customTemplateText
     ? customTemplateText
         .split("\n")
-        .map(
-          (line) =>
-            `<p style="margin: 0 0 16px; line-height: 1.7; font-size: 15px; color: #3f3f46;">${escapeHtml(line)}</p>`,
+        .filter((line, index, lines) => line.trim() || index < lines.length - 1)
+        .map((line) =>
+          line.trim()
+            ? `<p style="${templateParagraphStyles}">${escapeHtml(line)}</p>`
+            : `<div style="height: 8px; line-height: 8px; font-size: 8px;">&nbsp;</div>`,
         )
         .join("")
-    : `<p style="margin: 0 0 16px; line-height: 1.7; font-size: 15px; color: #3f3f46;">Your MazeX registration was received successfully.</p>
-       ${formLine ? `<p style="margin: 0 0 16px; line-height: 1.7; font-size: 15px; color: #3f3f46;"><strong>${escapeHtml(formLine)}</strong></p>` : ""}
-       <p style="margin: 0 0 16px; line-height: 1.7; font-size: 15px; color: #3f3f46;">Our team will contact you if any additional steps are required.</p>`;
+    : `<p style="${templateParagraphStyles}">Your MazeX registration was received successfully.</p>
+       ${formLine ? `<p style="${templateParagraphStyles}"><strong>${escapeHtml(formLine)}</strong></p>` : ""}
+       <p style="${templateParagraphStyles}">Our team will contact you if any additional steps are required.</p>`;
 
   const finalHtml = `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
@@ -404,6 +409,7 @@ function buildEmail(
       .text-muted { color: #94a3b8 !important; }
       .border-color { border-color: #1e1e2e !important; }
       .sub-box { background-color: #1e1e2e !important; border-color: #27272a !important; }
+      .knurdz-card { background-color: #ffffff !important; border-color: #e2e8f0 !important; }
     }
 
     [data-ogsc] .text-dark, [data-ogsc] h3, [data-ogsc] h4, [data-ogsc] p, [data-ogsc] td { color: #f1f5f9 !important; }
@@ -411,6 +417,7 @@ function buildEmail(
     [data-ogsc] .body-bg { background-color: #0a0a0f !important; }
     [data-ogsc] .email-container { background-color: #13131a !important; }
     [data-ogsc] .sub-box { background-color: #1e1e2e !important; }
+    [data-ogsc] .knurdz-card { background-color: #ffffff !important; border-color: #e2e8f0 !important; }
   </style>
 </head>
 <body class="body-bg" style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased;">
@@ -460,8 +467,8 @@ function buildEmail(
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" align="center" style="width: 100%; max-width: 600px; margin: 0 auto;">
           <tr>
             <td style="padding: 24px 0 8px; text-align: center;">
-              <div style="display: inline-block; background-color: #ffffff; padding: 10px 20px; border-radius: 12px; border: 1px solid #e2e8f0; opacity: 0.85;">
-                <img src="${assets.knurdzPoweredByLight}" alt="Powered by Knurdz" height="34" style="display: block; height: 34px; width: auto;" />
+              <div class="knurdz-card" style="display: inline-block; background-color: #ffffff; overflow:hidden; border-radius: 4px; border: 1px solid #e2e8f0; opacity: 0.85;">
+                <img src="${assets.knurdzPoweredByLight}" alt="Powered by Knurdz" height="42" style="display: block; height: 42px; width: auto;" />
               </div>
             </td>
           </tr>

@@ -274,7 +274,7 @@ function getEmailAssetUrls() {
 
   return {
     mazexLogoWhite: `${baseUrl}/mazex-logo-white/view?${projectParam}`,
-    knurdzPoweredByLight: `${baseUrl}/knurdz-poweredby-light/view?${projectParam}`,
+    knurdzPoweredByLight: `${baseUrl}/69cd674d002c1c6adb7d/view?${projectParam}`,
   };
 }
 
@@ -621,7 +621,7 @@ function buildMarketingBroadcastHtml(content) {
     ? `<img src="${assets.mazexLogoWhite}" alt="MazeX" width="200" style="display: inline-block; height: auto; max-height: 64px; width: auto; max-width: 200px;" />`
     : `<div style="font-size: 28px; font-weight: 700; letter-spacing: 0.08em; color: #ffffff;">MazeX</div>`;
   const poweredByMarkup = assets.knurdzPoweredByLight
-    ? `<img src="${assets.knurdzPoweredByLight}" alt="Powered by Knurdz" height="34" style="display: block; height: 34px; width: auto;" />`
+    ? `<img src="${assets.knurdzPoweredByLight}" alt="Powered by Knurdz" height="42" style="display: block; height: 42px; width: auto;" />`
     : `<span style="font-size: 12px; font-weight: 600; color: #64748b;">Powered by Knurdz</span>`;
 
   return `<!DOCTYPE html>
@@ -681,7 +681,7 @@ function buildMarketingBroadcastHtml(content) {
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" align="center" style="width: 100%; max-width: 600px; margin: 0 auto;">
           <tr>
             <td style="padding: 24px 0 8px; text-align: center;">
-              <div style="display: inline-block; background-color: #ffffff; padding: 10px 20px; border-radius: 12px; border: 1px solid #e2e8f0; opacity: 0.85;">
+              <div style="display: inline-block; background-color: #ffffff; overflow:hidden; border-radius: 4px; border: 1px solid #e2e8f0; opacity: 0.85;">
                 ${poweredByMarkup}
               </div>
             </td>

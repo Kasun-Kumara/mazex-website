@@ -1,17 +1,18 @@
 "use client";
 
-import { useActionState, useDeferredValue, useState } from "react";
-import { useFormStatus } from "react-dom";
+import { useActionState, useDeferredValue, useEffect, useState } from "react";
+import { createPortal, useFormStatus } from "react-dom";
 import {
   CheckCircle2,
   Loader2,
   Mail,
-  Radio,
   RefreshCw,
   Search,
   Send,
+  Settings2,
   ShieldAlert,
   Users,
+  X,
 } from "lucide-react";
 import {
   sendContactEmailAction,
@@ -170,6 +171,34 @@ function SegmentChoice({
   );
 }
 
+function SegmentSyncSummary({
+  label,
+  totalCount,
+  syncedCount,
+}: {
+  label: string;
+  totalCount: number;
+  syncedCount: number;
+}) {
+  const pendingCount = totalCount - syncedCount;
+
+  return (
+    <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+        {label}
+      </p>
+      <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+        {syncedCount} synced of {totalCount}
+      </p>
+      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+        {pendingCount === 0
+          ? "No contacts waiting for sync."
+          : `${pendingCount} contact${pendingCount === 1 ? "" : "s"} still pending.`}
+      </p>
+    </div>
+  );
+}
+
 function ContactSegmentBadges({
   contact,
 }: {
@@ -208,10 +237,12 @@ export default function AdminContactsMailer({
   const [sendState, sendDispatch] = useActionState(sendContactEmailAction, IDLE);
   const [syncState, syncDispatch] = useActionState(syncPendingContactsAction, IDLE);
   const [search, setSearch] = useState("");
+  const [syncSettingsOpen, setSyncSettingsOpen] = useState(false);
   const deferredSearch = useDeferredValue(search);
   const [segmentKey, setSegmentKey] = useState<RegistrationContactSegmentKey>("all");
   const [subject, setSubject] = useState("");
   const [content, setContent] = useState("");
+  const canUseDom = typeof document !== "undefined";
   const query = deferredSearch.trim().toLocaleLowerCase("en-US");
   const filteredContacts = contacts.filter((contact) => contactMatchesQuery(contact, query));
   const visibleContacts = filteredContacts.filter((contact) =>
@@ -232,6 +263,27 @@ export default function AdminContactsMailer({
     segmentSummaries.find((segment) => segment.key === segmentKey) ?? segmentSummaries[0];
   const hasMessageContent = subject.trim().length > 0 && content.trim().length > 0;
   const canSend = hasMessageContent && activeSegment.syncedCount > 0;
+  const syncSettingsTitleId = "contact-sync-settings-title";
+
+  useEffect(() => {
+    if (!syncSettingsOpen || !canUseDom) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setSyncSettingsOpen(false);
+      }
+    }
+
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [canUseDom, syncSettingsOpen]);
 
   if (contacts.length === 0) {
     return (
@@ -268,8 +320,8 @@ export default function AdminContactsMailer({
         <ContactMailNotice state={sendState} />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="grid gap-6 xl:min-h-[calc(100vh-14rem)] xl:grid-cols-[1.2fr_0.8fr] xl:items-stretch">
+        <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900 xl:h-full">
           <div className="border-b border-zinc-200 px-5 py-4 dark:border-zinc-800">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-center gap-3">
@@ -281,20 +333,11 @@ export default function AdminContactsMailer({
                     Registered contacts
                   </p>
                   <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                    {contacts.length} total, {syncedContactsCount} synced to Resend
+                    {contacts.length} total contact{contacts.length === 1 ? "" : "s"}
                   </p>
                 </div>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                {pendingContactsCount > 0 ? (
-                  <form action={syncDispatch}>
-                    <SyncPendingButton disabled={false} />
-                  </form>
-                ) : (
-                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
-                    All contacts synced
-                  </span>
-                )}
                 <label className="relative block">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                   <input
@@ -305,42 +348,20 @@ export default function AdminContactsMailer({
                     className="w-full rounded-lg border border-zinc-300 bg-white py-2 pl-9 pr-3 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 lg:w-72 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
                   />
                 </label>
+                <button
+                  type="button"
+                  onClick={() => setSyncSettingsOpen(true)}
+                  aria-label="Open sync settings"
+                  title="Sync settings"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-300 bg-white text-zinc-900 shadow-sm transition-colors hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 dark:hover:bg-zinc-900 dark:focus:ring-zinc-300"
+                >
+                  <Settings2 className="h-4 w-4" />
+                </button>
               </div>
             </div>
           </div>
 
-          <div className="border-b border-zinc-200 px-5 py-4 dark:border-zinc-800">
-            <div className="grid gap-3 lg:grid-cols-3">
-              {segmentSummaries.map((segment) => (
-                <button
-                  key={segment.key}
-                  type="button"
-                  onClick={() => setSegmentKey(segment.key)}
-                  className={`rounded-xl border px-4 py-3 text-left transition-colors ${
-                    segment.key === segmentKey
-                      ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
-                      : "border-zinc-200 bg-zinc-50/70 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:bg-zinc-900"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 text-sm font-semibold">
-                    <Radio className="h-4 w-4" />
-                    <span>{segment.label}</span>
-                  </div>
-                  <p
-                    className={`mt-2 text-sm ${
-                      segment.key === segmentKey
-                        ? "text-white/80 dark:text-zinc-700"
-                        : "text-zinc-500 dark:text-zinc-400"
-                    }`}
-                  >
-                    {segment.syncedCount} synced of {segment.totalCount}
-                  </p>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="max-h-[36rem] overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto">
             <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
               {visibleContacts.map((contact) => (
                 <div
@@ -459,6 +480,118 @@ export default function AdminContactsMailer({
           </form>
         </section>
       </div>
+
+      {syncSettingsOpen && canUseDom
+        ? createPortal(
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+              <button
+                type="button"
+                aria-label="Close sync settings"
+                onClick={() => setSyncSettingsOpen(false)}
+                className="absolute inset-0 bg-zinc-950/55 backdrop-blur-sm"
+              />
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={syncSettingsTitleId}
+                className="relative z-[110] flex max-h-[calc(100vh-2rem)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_30px_80px_-30px_rgba(0,0,0,0.45)] dark:border-zinc-800 dark:bg-zinc-900 sm:max-h-[calc(100vh-3rem)]"
+              >
+                <div className="flex items-start justify-between gap-4 border-b border-zinc-200 px-5 py-4 dark:border-zinc-800 sm:px-6">
+                  <div>
+                    <h2
+                      id={syncSettingsTitleId}
+                      className="text-lg font-semibold text-zinc-900 dark:text-zinc-50"
+                    >
+                      Sync settings
+                    </h2>
+                    <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                      Review Resend sync coverage and sync any contacts that are still pending.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSyncSettingsOpen(false)}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 dark:focus:ring-zinc-300"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+                  <div className="space-y-5">
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-4 dark:border-zinc-800 dark:bg-zinc-950">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                          Total contacts
+                        </p>
+                        <p className="mt-2 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
+                          {contacts.length}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-500/30 dark:bg-emerald-500/10">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                          Synced
+                        </p>
+                        <p className="mt-2 text-2xl font-semibold text-emerald-900 dark:text-emerald-100">
+                          {syncedContactsCount}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                          Pending
+                        </p>
+                        <p className="mt-2 text-2xl font-semibold text-amber-900 dark:text-amber-100">
+                          {pendingContactsCount}
+                        </p>
+                      </div>
+                    </div>
+
+                    <ContactMailNotice state={syncState} />
+
+                    <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-4 dark:border-zinc-800 dark:bg-zinc-950/60">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                            Resend contact sync
+                          </p>
+                          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                            Sync new registration contacts before sending a broadcast.
+                          </p>
+                        </div>
+                        {pendingContactsCount > 0 ? (
+                          <form action={syncDispatch}>
+                            <SyncPendingButton disabled={false} />
+                          </form>
+                        ) : (
+                          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                            All contacts synced
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                        Segment sync coverage
+                      </p>
+                      <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                        {segmentSummaries.map((segment) => (
+                          <SegmentSyncSummary
+                            key={segment.key}
+                            label={segment.label}
+                            totalCount={segment.totalCount}
+                            syncedCount={segment.syncedCount}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
