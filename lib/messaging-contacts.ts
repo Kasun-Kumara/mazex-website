@@ -460,7 +460,7 @@ function getEmailAssetUrls() {
   const projectParam = `project=${projectId}`;
   
   return {
-    mazexLogo: `${baseUrl}/mazex-logo/view?${projectParam}`,
+    mazexLogo: `${baseUrl}/mazex-logo-white/view?${projectParam}`,
     mazexLogoWhite: `${baseUrl}/mazex-logo-white/view?${projectParam}`,
     knurdzPoweredBy: `${baseUrl}/knurdz-poweredby/view?${projectParam}`,
     knurdzPoweredByLight: `${baseUrl}/knurdz-poweredby-light/view?${projectParam}`,
@@ -485,10 +485,10 @@ function buildCustomEmailHtml(content: string) {
       ? blocks
           .map(
             (block) =>
-              `<p style="margin: 0 0 16px; line-height: 1.7; font-size: 15px; color: #27272a;">${block}</p>`,
+              `<p style="margin: 0 0 18px; line-height: 1.75; font-size: 15px; color: #3f3f46;">${block}</p>`,
           )
           .join("")
-      : `<p style="margin: 0; line-height: 1.7; font-size: 15px; color: #27272a;"></p>`;
+      : `<p style="margin: 0; line-height: 1.75; font-size: 15px; color: #3f3f46;"></p>`;
 
   return `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
@@ -510,88 +510,72 @@ function buildCustomEmailHtml(content: string) {
   </noscript>
   <![endif]-->
   <style>
-    /* Reset */
     body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
     table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
     img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
-    
-    /* Base */
-    body { margin: 0 !important; padding: 0 !important; width: 100% !important; background-color: #f4f4f5; }
-    
-    /* Responsive */
+    body { margin: 0 !important; padding: 0 !important; width: 100% !important; background-color: #f1f5f9; }
     @media only screen and (max-width: 600px) {
-      .email-container { width: 100% !important; margin: 0 auto !important; }
-      .email-wrapper { padding: 16px !important; }
-      .content-cell { padding: 24px 20px !important; }
-      .header-cell { padding: 20px !important; }
-      .responsive-table { width: 100% !important; }
+      .email-container { width: 100% !important; }
+      .email-wrapper { padding: 12px !important; }
+      .content-cell { padding: 28px 20px !important; }
+      .header-logo { max-width: 110px !important; }
     }
-    
-    /* Dark mode */
     @media (prefers-color-scheme: dark) {
-      body, .body-bg { background-color: #09090b !important; }
-      .email-container { background-color: #18181b !important; border-color: #27272a !important; }
-      .header-cell { background-color: #18181b !important; border-color: #27272a !important; }
-      .content-cell { background-color: #18181b !important; }
-      .text-dark { color: #f4f4f5 !important; }
-      .text-muted { color: #a1a1aa !important; }
-      .border-color { border-color: #27272a !important; }
-      .dark-logo { display: inline-block !important; max-height: 40px !important; }
-      .light-logo { display: none !important; max-height: 0 !important; overflow: hidden !important; }
-      .footer-dark-logo { display: inline-block !important; max-height: 24px !important; }
+      body, .body-bg { background-color: #0a0a0f !important; }
+      .email-container { background-color: #13131a !important; border-color: #1e1e2e !important; }
+      .header-bg { background-color: #000102 !important; }
+      .content-cell { background-color: #13131a !important; }
+      p { color: #f1f5f9 !important; }
+      .text-muted { color: #94a3b8 !important; }
+      .divider-line { border-color: #1e1e2e !important; }
+      .footer-note { color: #64748b !important; }
+      .footer-dark-logo { display: inline-block !important; max-height: 34px !important; }
       .footer-light-logo { display: none !important; max-height: 0 !important; overflow: hidden !important; }
     }
 
-    /* Ensure dark mode logos are hidden by default (light mode) */
-    .dark-logo, .footer-dark-logo {
-      display: none !important;
-      max-height: 0 !important;
-      overflow: hidden !important;
-    }
-
-    /* Gmail-specific dark mode */
-    [data-ogsc] .dark-logo, 
+    .footer-dark-logo { display: none !important; max-height: 0 !important; overflow: hidden !important; }
+    [data-ogsc] p { color: #f1f5f9 !important; }
+    [data-ogsc] .text-muted { color: #94a3b8 !important; }
+    [data-ogsc] .body-bg { background-color: #0a0a0f !important; }
+    [data-ogsc] .email-container { background-color: #13131a !important; }
     [data-ogsc] .footer-dark-logo { display: inline-block !important; max-height: none !important; }
-    [data-ogsc] .light-logo,
     [data-ogsc] .footer-light-logo { display: none !important; }
   </style>
 </head>
-<body class="body-bg" style="margin: 0; padding: 0; background-color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased;">
-  
-  <!-- Preheader text (hidden) -->
-  <div style="display: none; font-size: 1px; color: #f4f4f5; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden;">
-    Message from MazeX
-  </div>
+<body class="body-bg" style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased;">
 
-  <!-- Email wrapper table -->
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="body-bg" style="background-color: #f4f4f5;">
+  <div style="display: none; font-size: 1px; color: #f1f5f9; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden;">Message from MazeX &zwnj;&nbsp;&zwnj;&nbsp;</div>
+
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="body-bg" style="background-color: #f1f5f9;">
     <tr>
-      <td class="email-wrapper" style="padding: 40px 20px;">
-        
-        <!-- Main container -->
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" align="center" class="email-container" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e4e4e7; border-radius: 16px; overflow: hidden;">
-          
-          <!-- Header with Logo -->
+      <td align="center" valign="top" class="email-wrapper" style="padding: 48px 20px 40px; text-align: center;">
+
+        <!-- Card -->
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" align="center" class="email-container" style="width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; text-align: left;">
+
+          <!-- Header -->
           <tr>
-            <td class="header-cell border-color" style="padding: 28px 32px; text-align: center; background-color: #ffffff; border-bottom: 1px solid #e4e4e7;">
-              <!-- Light mode logo -->
-              <img class="light-logo" src="${assets.mazexLogo}" alt="MazeX" width="120" style="display: inline-block; height: auto; max-height: 40px; width: auto; max-width: 120px;" />
-              <!-- Dark mode logo -->
-              <img class="dark-logo" src="${assets.mazexLogoWhite}" alt="MazeX" width="120" style="display: none; height: auto; max-height: 40px; width: auto; max-width: 120px;" />
+            <td class="header-bg" style="padding: 36px 40px; text-align: center; background-color: #000102;">
+              <img src="${assets.mazexLogoWhite}" alt="MazeX" width="200" style="display: inline-block; height: auto; max-height: 64px; width: auto; max-width: 200px;" />
             </td>
           </tr>
-          
+
           <!-- Content -->
           <tr>
-            <td class="content-cell" style="padding: 32px 40px;">
-              ${paragraphs}
-              
-              <!-- Footer note -->
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-top: 28px;">
+            <td class="content-cell" style="padding: 40px 44px 36px;">
+
+              <!-- Content paragraphs -->
+              <div style="margin-bottom: 36px;">
+                ${paragraphs}
+              </div>
+
+              <!-- Divider + Sign-off -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                 <tr>
-                  <td class="border-color" style="padding-top: 20px; border-top: 1px solid #e4e4e7;">
-                    <p class="text-muted" style="margin: 0; font-size: 13px; line-height: 1.6; color: #71717a;">
-                      Sent from the MazeX admin panel.
+                  <td class="divider-line" style="padding-top: 24px; border-top: 1px solid #e2e8f0;">
+                    <p class="text-muted" style="margin: 0; font-size: 14px; line-height: 1.6; color: #64748b;">
+                      Thank you,<br/>
+                      <strong style="color: inherit;">MazeX Team</strong>
                     </p>
                   </td>
                 </tr>
@@ -599,26 +583,19 @@ function buildCustomEmailHtml(content: string) {
             </td>
           </tr>
         </table>
-        
-        <!-- Footer with Knurdz logo -->
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" align="center" class="email-container" style="max-width: 600px; margin: 0 auto;">
+
+        <!-- Footer -->
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" align="center" style="width: 100%; max-width: 600px; margin: 0 auto;">
           <tr>
-            <td style="padding: 24px 0; text-align: center;">
+            <td style="padding: 24px 0 8px; text-align: center;">
               <!-- Light mode footer logo -->
-              <img class="footer-light-logo" src="${assets.knurdzPoweredByLight}" alt="Powered by Knurdz" height="24" style="display: inline-block; height: 24px; width: auto;" />
+              <img class="footer-light-logo" src="${assets.knurdzPoweredByLight}" alt="Powered by Knurdz" height="34" style="display: inline-block; height: 34px; width: auto; opacity: 0.7;" />
               <!-- Dark mode footer logo -->
-              <img class="footer-dark-logo" src="${assets.knurdzPoweredBy}" alt="Powered by Knurdz" height="24" style="display: none; height: 24px; width: auto;" />
-            </td>
-          </tr>
-          <tr>
-            <td style="text-align: center; padding-bottom: 16px;">
-              <p class="text-muted" style="margin: 0; font-size: 12px; color: #71717a;">
-                This is an automated message from MazeX.
-              </p>
+              <img class="footer-dark-logo" src="${assets.knurdzPoweredBy}" alt="Powered by Knurdz" height="34" style="display: none; height: 34px; width: auto; opacity: 0.7;" />
             </td>
           </tr>
         </table>
-        
+
       </td>
     </tr>
   </table>
