@@ -100,8 +100,8 @@ const Hexagon = ({
     <div
       className={`absolute inset-0 bg-gradient-to-br transition-all duration-500 pointer-events-none ${
         isCenter
-          ? "from-[#A855F7] to-[#818CF8] opacity-25 blur-[30px]"
-          : "from-[#A855F7]/30 to-[#818CF8]/30 opacity-0 group-hover:opacity-100 blur-[20px]"
+          ? "from-[#A855F7] to-[#818CF8] opacity-25 blur-[1.875rem]"
+          : "from-[#A855F7]/30 to-[#818CF8]/30 opacity-0 group-hover:opacity-100 blur-[1.25rem]"
       }`}
       style={{
         clipPath:
@@ -118,7 +118,7 @@ const Hexagon = ({
       }}
     >
       <div
-        className={`absolute inset-[1.5px] bg-gradient-to-b ${
+        className={`absolute inset-[0.0938rem] bg-gradient-to-b ${
           isCenter
             ? "from-[#A855F7] to-[#818CF8]"
             : "from-[#1a1b2e] to-[#0f1021] border border-maze-border/20 transition-colors duration-500 group-hover:from-[#A855F7]/25 group-hover:to-[#818CF8]/15"
@@ -163,8 +163,8 @@ export default function ContactUs() {
       className="theme-section relative overflow-hidden py-12 lg:py-16"
     >
       {/* Background Decor */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[800px] w-[800px] rounded-full bg-[#A855F7]/8 opacity-20 blur-[200px] pointer-events-none" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[750px] w-[750px] rounded-full bg-[#818CF8]/8 opacity-20 blur-[180px] pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[50rem] w-[50rem] rounded-full bg-[#A855F7]/8 opacity-20 blur-[12.5rem] pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[46.875rem] w-[46.875rem] rounded-full bg-[#818CF8]/8 opacity-20 blur-[11.25rem] pointer-events-none" />
 
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 font-heading">
         <motion.div
@@ -172,12 +172,12 @@ export default function ContactUs() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
-          className="relative flex flex-col items-center justify-center gap-8 lg:gap-0 lg:h-[680px]"
+          className="relative flex flex-col items-center justify-center gap-8 lg:gap-0 lg:h-[42.5rem]"
         >
           {/* CENTER HUB */}
           <a
             href="mailto:mazex@knurdz.org"
-            className="lg:absolute lg:top-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 w-full max-w-[240px] z-30 order-first lg:order-none pointer-events-none"
+            className="lg:absolute lg:top-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 w-full max-w-[15rem] z-30 order-first lg:order-none pointer-events-none"
           >
             <Hexagon isCenter>
               <div className="flex flex-col items-center">
@@ -212,11 +212,11 @@ export default function ContactUs() {
             return (
               <div
                 key={member.email}
-                className="w-full max-w-[240px] lg:absolute lg:top-1/2 lg:left-1/2 pointer-events-none"
+                className="w-full max-w-[15rem] lg:absolute lg:top-1/2 lg:left-1/2 pointer-events-none"
                 style={
                   {
-                    "--tx": `${pos.x}px`,
-                    "--ty": `${pos.y}px`,
+                    "--tx": `${(pos.x) / 16}rem`,
+                    "--ty": `${(pos.y) / 16}rem`,
                   } as any
                 }
               >
@@ -236,7 +236,7 @@ export default function ContactUs() {
                         {member.name}
                       </h3>
 
-                      <span className="mb-2 text-[8px] sm:text-[9px] font-bold uppercase tracking-[0.16em] text-[#C084FC]">
+                      <span className="mb-2 text-[0.5rem] sm:text-[0.5625rem] font-bold uppercase tracking-[0.16em] text-[#C084FC]">
                         {member.role}
                       </span>
 
@@ -250,7 +250,7 @@ export default function ContactUs() {
                         {member.email && (
                           <a
                             href={`mailto:${member.email}`}
-                            className="text-[10px] sm:text-[10px] leading-tight text-[#b9accd] hover:text-[#F8FAFC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#A855F7]/70 rounded px-1 py-0.5 transition-colors break-all text-center max-w-[170px]"
+                            className="text-[0.625rem] sm:text-[0.625rem] leading-tight text-[#b9accd] hover:text-[#F8FAFC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#A855F7]/70 rounded px-1 py-0.5 transition-colors break-all text-center max-w-[10.625rem]"
                           >
                             {member.email}
                           </a>

@@ -576,7 +576,7 @@ export default function MazeAnimation({
     >
       {interactive && statusMessage ? (
         <div className="pointer-events-none absolute -top-6 left-1/2 z-20 flex w-full -translate-x-1/2 justify-center px-3 sm:-top-7">
-          <div className="max-w-[calc(100%-1.5rem)] rounded-full border border-rose-400/40 bg-rose-950/70 px-4 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-100 shadow-[0_0_24px_rgba(251,113,133,0.14)] backdrop-blur-sm sm:text-xs">
+          <div className="max-w-[calc(100%-1.5rem)] rounded-full border border-rose-400/40 bg-rose-950/70 px-4 py-2 text-center text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-rose-100 shadow-[0_0_1.5rem_rgba(251,113,133,0.14)] backdrop-blur-sm sm:text-xs">
             {statusMessage}
           </div>
         </div>
