@@ -87,11 +87,24 @@ export default function HashScrollManager() {
 
     window.history.scrollRestoration = "manual";
 
-    const scheduleScroll = (hash: string, behavior: ScrollBehavior) => {
+    const scheduleScroll = (hash: string, behavior: ScrollBehavior, clearHashAfter = false) => {
       window.setTimeout(() => {
         window.requestAnimationFrame(() => {
           syncAnchorOffset();
           scrollToHashTarget(hash, behavior);
+
+          if (clearHashAfter) {
+            // Remove the hash from the URL after the scroll animation completes
+            // so that mobile viewport resize events (browser toolbar show/hide)
+            // don't re-snap the page back to the section.
+            const delay = behavior === "smooth" ? 500 : 100;
+            window.setTimeout(() => {
+              if (window.location.hash === hash) {
+                const cleanUrl = `${window.location.pathname}${window.location.search}`;
+                window.history.replaceState(null, "", cleanUrl);
+              }
+            }, delay);
+          }
         });
       }, 0);
     };
@@ -133,6 +146,20 @@ export default function HashScrollManager() {
         const currentUrl = new URL(window.location.href);
         const anchorUrl = new URL(anchor.href, currentUrl);
 
+        const isSamePageNoHash =
+          !anchorUrl.hash &&
+          anchorUrl.origin === currentUrl.origin &&
+          anchorUrl.pathname === currentUrl.pathname &&
+          anchorUrl.search === currentUrl.search;
+
+        // Same page, no hash (e.g. logo linking to "/") → scroll to top
+        if (isSamePageNoHash) {
+          event.preventDefault();
+          window.history.replaceState(null, "", `${currentUrl.pathname}${currentUrl.search}`);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+          return;
+        }
+
         isSameDocumentHashLink =
           Boolean(anchorUrl.hash) &&
           anchorUrl.origin === currentUrl.origin &&
@@ -159,7 +186,7 @@ export default function HashScrollManager() {
         window.history.pushState(null, "", nextUrl);
       }
 
-      scheduleScroll(nextHash, "smooth");
+      scheduleScroll(nextHash, "smooth", true);
     };
 
     const handleHashChange = () => {
@@ -173,6 +200,10 @@ export default function HashScrollManager() {
     const handleResize = () => {
       syncAnchorOffset();
 
+      // Do not re-scroll on resize (e.g. mobile browser toolbar collapse/expand).
+      // The hash is cleared from the URL after a nav-link scroll, so this guard
+      // only fires for genuine deep-link / page-load scenarios where the hash
+      // is intentionally present.
       if (!window.location.hash) {
         return;
       }
