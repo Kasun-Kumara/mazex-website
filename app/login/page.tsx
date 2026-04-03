@@ -40,9 +40,9 @@ export default async function LoginPage() {
               </Link>
             </div>
             <div className="flex flex-1 items-center justify-center py-4 sm:py-6">
-              <div className="w-full max-w-md rounded-2xl border border-[#221a31] bg-[#08060f] p-7 shadow-[0_24px_60px_rgba(0,0,0,0.45)] sm:p-9">
+              <div className="w-full max-w-md rounded-2xl border border-[#221a31] bg-[#08060f] p-7 shadow-[0_1.5rem_3.75rem_rgba(0,0,0,0.45)] sm:p-9">
                 <div className="space-y-3">
-                  <span className="theme-chip text-[11px] font-bold uppercase tracking-[0.28em]">
+                  <span className="theme-chip text-[0.6875rem] font-bold uppercase tracking-[0.28em]">
                     Admin Login
                   </span>
                   <h2 className="text-3xl font-semibold tracking-tight text-[#F8FAFC]">
