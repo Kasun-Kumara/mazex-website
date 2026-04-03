@@ -214,17 +214,25 @@ export default function HashScrollManager() {
       }, RESIZE_DEBOUNCE_MS);
     };
 
+    const handleBeforeUnload = () => {
+      // Re-enable browser native scroll restoration right before reload/leave
+      // so the browser instantly restores the scroll position on the next load
+      // before rendering, avoiding any visual "jump" from a React useEffect.
+      window.history.scrollRestoration = "auto";
+    };
+
     document.addEventListener("click", handleAnchorClick);
     window.addEventListener("hashchange", handleHashChange);
     window.addEventListener("popstate", handlePopState);
     window.addEventListener("resize", handleResize);
+    window.addEventListener("beforeunload", handleBeforeUnload);
     syncAnchorOffset();
 
     if (isReloadNavigation()) {
       const cleanUrl = `${window.location.pathname}${window.location.search}`;
 
+      // Drop the hash cleanly without overriding the natively restored scroll position
       window.history.replaceState(null, "", cleanUrl);
-      window.scrollTo({ top: 0, behavior: "auto" });
     } else if (window.location.hash) {
       scheduleScroll(window.location.hash, "auto");
     }
@@ -234,6 +242,7 @@ export default function HashScrollManager() {
       window.removeEventListener("hashchange", handleHashChange);
       window.removeEventListener("popstate", handlePopState);
       window.removeEventListener("resize", handleResize);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
 
       if (resizeTimeout) {
         window.clearTimeout(resizeTimeout);
