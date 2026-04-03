@@ -31,10 +31,14 @@ export default function Hero() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="mb-6 inline-block"
+              className="mb-8 inline-block relative"
             >
-              <span className="theme-kicker">
-                IEEE RAS X WIE
+              <div className="absolute -left-6 top-1/2 h-px w-6 bg-gradient-to-r from-transparent to-[#a855f7]/30" />
+              <div className="absolute -top-6 left-6 h-6 w-px bg-gradient-to-b from-transparent to-[#a855f7]/30" />
+              
+              <span className="theme-kicker group">
+                <div className="animate-kicker-scan" />
+                IEEE RAS <span className="mx-1.5 opacity-40 font-light text-[0.65rem] transition-opacity group-hover:opacity-70">×</span> WIE
               </span>
             </motion.div>
 
