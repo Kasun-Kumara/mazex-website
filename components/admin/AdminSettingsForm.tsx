@@ -1,17 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ExternalLink, Eye, EyeOff, KeyRound, ShieldAlert, X } from "lucide-react";
 import {
   changeAdminPasswordAction,
   type ChangeAdminPasswordState,
+  updateGoogleSheetsTransferPreferenceAction,
+  type UpdateGoogleSheetsTransferState,
 } from "@/app/admin/actions";
+import type { SiteAdminSummary } from "@/lib/admin-users";
 import type { GoogleSheetsConnection } from "@/lib/google-sheets";
+import AdminAccessManager from "./AdminAccessManager";
 
 const initialState: ChangeAdminPasswordState = {
   error: null,
+  toastKey: 0,
+};
+const initialGoogleSheetsTransferState: UpdateGoogleSheetsTransferState = {
+  status: "idle",
+  message: null,
   toastKey: 0,
 };
 const GOOGLE_SHEETS_SECTION_ID = "google-sign-in";
@@ -89,31 +98,71 @@ function Field({
 }
 
 export default function AdminSettingsForm({
+  adminDirectoryNotice,
+  canDeleteAdmins,
+  canManageAdmins,
+  currentAdminUserId,
   googleSheetsConnection,
   googleSheetsOAuthConfigured,
+  googleSheetsTransferOnReconnectEnabled,
+  googleSheetsNotice,
+  siteAdmins,
 }: {
+  adminDirectoryNotice: {
+    status: "error";
+    message: string;
+  } | null;
+  canDeleteAdmins: boolean;
+  canManageAdmins: boolean;
+  currentAdminUserId: string;
   googleSheetsConnection: GoogleSheetsConnection | null;
   googleSheetsOAuthConfigured: boolean;
+  googleSheetsTransferOnReconnectEnabled: boolean;
+  googleSheetsNotice: {
+    status: "error" | "success" | "warning";
+    message: string;
+  } | null;
+  siteAdmins: SiteAdminSummary[];
 }) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [transferExistingGoogleSheetsData, setTransferExistingGoogleSheetsData] =
+    useState(googleSheetsTransferOnReconnectEnabled);
+  const transferFormRef = useRef<HTMLFormElement>(null);
+  const transferSettingInputRef = useRef<HTMLInputElement>(null);
   const [dismissedToastId, setDismissedToastId] = useState<string | null>(null);
   const [state, formAction] = useActionState(
     changeAdminPasswordAction,
     initialState,
   );
+  const [googleSheetsTransferState, googleSheetsTransferFormAction, googleSheetsTransferPending] =
+    useActionState(
+      updateGoogleSheetsTransferPreferenceAction,
+      initialGoogleSheetsTransferState,
+    );
 
   const activeToast = useMemo(
     () =>
-      state.error
+      googleSheetsNotice?.message
+        ? {
+            id: `google-sheets:${googleSheetsNotice.status}:${googleSheetsNotice.message}`,
+            message: googleSheetsNotice.message,
+            status: googleSheetsNotice.status,
+          }
+        : state.error
         ? {
             id: `error:${state.toastKey}`,
             message: state.error,
+            status: "error" as const,
           }
         : null,
-    [state.error, state.toastKey],
+    [googleSheetsNotice, state.error, state.toastKey],
   );
+
+  useEffect(() => {
+    setTransferExistingGoogleSheetsData(googleSheetsTransferOnReconnectEnabled);
+  }, [googleSheetsTransferOnReconnectEnabled]);
 
   useEffect(() => {
     if (!activeToast) {
@@ -133,11 +182,32 @@ export default function AdminSettingsForm({
     `/admin/settings#${GOOGLE_SHEETS_SECTION_ID}`,
   )}`;
 
+  function handleGoogleSheetsTransferToggle() {
+    if (googleSheetsTransferPending) {
+      return;
+    }
+
+    const nextValue = !transferExistingGoogleSheetsData;
+    setTransferExistingGoogleSheetsData(nextValue);
+
+    if (transferSettingInputRef.current) {
+      transferSettingInputRef.current.value = nextValue ? "on" : "off";
+    }
+
+    transferFormRef.current?.requestSubmit();
+  }
+
   return (
     <>
       {visibleToast ? (
         <div
-          className="fixed left-4 right-4 top-4 z-50 mx-auto flex w-auto max-w-sm items-start gap-3 rounded-lg border border-rose-500/30 bg-rose-50 px-4 py-3 text-sm text-rose-900 shadow-xl sm:left-auto sm:right-6 dark:bg-rose-500/10 dark:text-rose-100"
+          className={`fixed left-4 right-4 top-4 z-50 mx-auto flex w-auto max-w-sm items-start gap-3 rounded-lg border px-4 py-3 text-sm shadow-xl sm:left-auto sm:right-6 ${
+            visibleToast.status === "success"
+              ? "border-emerald-500/30 bg-emerald-50 text-emerald-900 dark:bg-emerald-500/10 dark:text-emerald-100"
+              : visibleToast.status === "warning"
+                ? "border-amber-500/30 bg-amber-50 text-amber-900 dark:bg-amber-500/10 dark:text-amber-100"
+              : "border-rose-500/30 bg-rose-50 text-rose-900 dark:bg-rose-500/10 dark:text-rose-100"
+          }`}
           role="status"
           aria-live="polite"
         >
@@ -156,6 +226,7 @@ export default function AdminSettingsForm({
 
       <div className="mx-auto w-full max-w-6xl">
         <div className="space-y-6">
+
           <section
             id={GOOGLE_SHEETS_SECTION_ID}
             className="scroll-mt-28 rounded-xl border border-zinc-200 bg-white px-3 py-5 sm:p-6 md:p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
@@ -169,8 +240,8 @@ export default function AdminSettingsForm({
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
                 Connect the single Google account used for registration syncs
-                here. Form settings will link back to this section whenever sync
-                needs Google access.
+                here. Changing it here updates the shared Google connection for
+                every admin account.
               </p>
             </div>
 
@@ -178,7 +249,7 @@ export default function AdminSettingsForm({
               {googleSheetsConnection ? (
                 <>
                   <p className="text-sm text-zinc-700 dark:text-zinc-300">
-                    Connected as{" "}
+                    Connected for all admins as{" "}
                     <span className="font-semibold text-zinc-900 dark:text-zinc-100">
                       {googleSheetsConnection.email ?? "Google account"}
                     </span>
@@ -225,8 +296,100 @@ export default function AdminSettingsForm({
                   sync.
                 </p>
               )}
+
+              {googleSheetsOAuthConfigured ? (
+                <form
+                  ref={transferFormRef}
+                  action={googleSheetsTransferFormAction}
+                  className="mt-5 border-t border-zinc-200 pt-5 dark:border-zinc-800"
+                >
+                  <input
+                    ref={transferSettingInputRef}
+                    type="hidden"
+                    name="transferExistingGoogleSheetsData"
+                    value={transferExistingGoogleSheetsData ? "on" : "off"}
+                  />
+
+                  <div className="rounded-lg border border-zinc-200 bg-white/80 p-4 dark:border-zinc-800 dark:bg-zinc-900/70">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <label
+                          htmlFor="transferExistingGoogleSheetsDataToggle"
+                          className="block text-sm font-medium text-zinc-900 dark:text-zinc-100"
+                        >
+                          Transfer existing sheets and data to the new Google account
+                        </label>
+                        <p className="mt-1 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+                          When enabled, reconnecting Google to a different account
+                          creates a new spreadsheet there and copies the current
+                          MazeX sheets, tabs, and existing registration data from
+                          the old account before future syncs continue.
+                        </p>
+                        <p className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-500">
+                          When disabled, changing the Google account starts with a
+                          fresh spreadsheet in the new account.
+                        </p>
+                      </div>
+
+                      <div className="flex shrink-0 items-center">
+                        <button
+                          id="transferExistingGoogleSheetsDataToggle"
+                          type="button"
+                          role="switch"
+                          aria-checked={transferExistingGoogleSheetsData}
+                          aria-label="Toggle Google Sheets transfer on reconnect"
+                          disabled={googleSheetsTransferPending}
+                          onClick={handleGoogleSheetsTransferToggle}
+                          className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-2 dark:focus:ring-zinc-200 dark:focus:ring-offset-zinc-900 ${
+                            transferExistingGoogleSheetsData
+                              ? "border-zinc-900 bg-zinc-900 dark:border-zinc-100 dark:bg-zinc-100"
+                              : "border-zinc-300 bg-zinc-300 dark:border-zinc-600 dark:bg-zinc-700"
+                          } ${
+                            googleSheetsTransferPending
+                              ? "cursor-wait opacity-70"
+                              : ""
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform dark:bg-zinc-950 ${
+                                transferExistingGoogleSheetsData
+                                  ? "translate-x-6"
+                                  : "translate-x-1"
+                              }`}
+                            />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {googleSheetsTransferPending ? (
+                    <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
+                      Saving...
+                    </p>
+                  ) : googleSheetsTransferState.status !== "idle" &&
+                    googleSheetsTransferState.message ? (
+                    <p
+                      className={`mt-4 text-sm ${
+                        googleSheetsTransferState.status === "success"
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : "text-rose-600 dark:text-rose-400"
+                      }`}
+                    >
+                      {googleSheetsTransferState.message}
+                    </p>
+                  ) : null}
+                </form>
+              ) : null}
             </div>
           </section>
+
+          <AdminAccessManager
+            adminDirectoryNotice={adminDirectoryNotice}
+            admins={siteAdmins}
+            canDeleteAdmins={canDeleteAdmins}
+            canManageAdmins={canManageAdmins}
+            currentAdminUserId={currentAdminUserId}
+          />
 
           <section className="rounded-xl border border-zinc-200 bg-white px-3 py-5 sm:p-6 md:p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
             <div className="max-w-xl">

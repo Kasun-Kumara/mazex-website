@@ -1,10 +1,11 @@
 import "server-only";
 
-import { AppwriteException, Databases, Models } from "node-appwrite";
+import { AppwriteException, Databases, Models, Query } from "node-appwrite";
 import { createAppwriteAdminClient } from "@/lib/appwrite";
 
 const DEFAULT_CONNECTIONS_COLLECTION_ID = "google_sheets_connections";
 const DEFAULT_SPREADSHEET_TITLE = "MazeX Registrations";
+const SHARED_GOOGLE_SHEETS_CONNECTION_DOCUMENT_ID = "shared_google_sheets_connection";
 const GOOGLE_OAUTH_SCOPES = [
   "openid",
   "https://www.googleapis.com/auth/userinfo.email",
@@ -53,6 +54,43 @@ type GoogleSpreadsheetResponse = {
   spreadsheetUrl?: string;
 };
 
+type GoogleSheetProperties = {
+  sheetId?: number;
+  title?: string;
+  hidden?: boolean;
+  index?: number;
+  gridProperties?: {
+    frozenRowCount?: number;
+  } | null;
+};
+
+type GoogleSpreadsheetDetailsResponse = GoogleSpreadsheetResponse & {
+  properties?: {
+    title?: string;
+  } | null;
+  sheets?: Array<{
+    properties?: GoogleSheetProperties | null;
+  }> | null;
+};
+
+type GoogleSheetsBatchUpdateResponse = {
+  replies?: Array<{
+    addSheet?: {
+      properties?: GoogleSheetProperties | null;
+    } | null;
+  }> | null;
+};
+
+type GoogleSheetValuesResponse = {
+  values?: unknown[][];
+};
+
+type ResolvedGoogleSpreadsheet = {
+  spreadsheetId: string;
+  spreadsheetUrl: string | null;
+  transferWarning: string | null;
+};
+
 export class GoogleSheetsConfigError extends Error {
   constructor(message: string) {
     super(message);
@@ -67,6 +105,10 @@ function trim(value: unknown) {
 function trimNullable(value: unknown) {
   const normalized = trim(value);
   return normalized || null;
+}
+
+function normalizeEmail(value: unknown) {
+  return trim(value).toLowerCase();
 }
 
 function getGoogleSheetsConnectionCollectionId() {
@@ -114,10 +156,14 @@ export function getGoogleSheetsConnectionDocumentId(adminUserId: string) {
   return adminUserId.trim();
 }
 
+export function getSharedGoogleSheetsConnectionDocumentId() {
+  return SHARED_GOOGLE_SHEETS_CONNECTION_DOCUMENT_ID;
+}
+
 function mapGoogleSheetsConnectionDoc(
   doc: GoogleSheetsConnectionDoc,
 ): GoogleSheetsConnectionRecord | null {
-  const adminUserId = trim(doc.adminUserId);
+  const adminUserId = trim(doc.$id) || trim(doc.adminUserId);
   const refreshToken = trim(doc.refreshToken);
   const spreadsheetId = trim(doc.spreadsheetId);
 
@@ -135,16 +181,16 @@ function mapGoogleSheetsConnectionDoc(
 }
 
 async function getGoogleSheetsConnectionDocument(
-  adminUserId: string,
+  documentId: string,
 ): Promise<GoogleSheetsConnectionRecord | null> {
-  const normalizedAdminUserId = adminUserId.trim();
-  if (!normalizedAdminUserId) return null;
+  const normalizedDocumentId = documentId.trim();
+  if (!normalizedDocumentId) return null;
 
   try {
     const document = await createDatabasesService().getDocument<GoogleSheetsConnectionDoc>(
       process.env.APPWRITE_DB_ID?.trim() || "mazex_data",
       getGoogleSheetsConnectionCollectionId(),
-      getGoogleSheetsConnectionDocumentId(normalizedAdminUserId),
+      getGoogleSheetsConnectionDocumentId(normalizedDocumentId),
     );
 
     return mapGoogleSheetsConnectionDoc(document);
@@ -157,10 +203,45 @@ async function getGoogleSheetsConnectionDocument(
   }
 }
 
-export async function getGoogleSheetsConnectionForAdmin(
-  adminUserId: string,
-): Promise<GoogleSheetsConnection | null> {
-  const record = await getGoogleSheetsConnectionDocument(adminUserId);
+async function getLatestLegacyGoogleSheetsConnectionDocument() {
+  const databaseId = process.env.APPWRITE_DB_ID?.trim() || "mazex_data";
+  const collectionId = getGoogleSheetsConnectionCollectionId();
+  const documents = await createDatabasesService().listDocuments<GoogleSheetsConnectionDoc>(
+    databaseId,
+    collectionId,
+    [
+      Query.orderDesc("$updatedAt"),
+      Query.limit(25),
+    ],
+  );
+
+  for (const document of documents.documents) {
+    if (trim(document.$id) === SHARED_GOOGLE_SHEETS_CONNECTION_DOCUMENT_ID) {
+      continue;
+    }
+
+    const connection = mapGoogleSheetsConnectionDoc(document);
+    if (connection) {
+      return connection;
+    }
+  }
+
+  return null;
+}
+
+export async function getSharedGoogleSheetsConnectionRecord() {
+  const sharedConnection = await getGoogleSheetsConnectionDocument(
+    SHARED_GOOGLE_SHEETS_CONNECTION_DOCUMENT_ID,
+  );
+  if (sharedConnection) {
+    return sharedConnection;
+  }
+
+  return getLatestLegacyGoogleSheetsConnectionDocument();
+}
+
+export async function getSharedGoogleSheetsConnection(): Promise<GoogleSheetsConnection | null> {
+  const record = await getSharedGoogleSheetsConnectionRecord();
   if (!record) return null;
 
   return {
@@ -171,27 +252,35 @@ export async function getGoogleSheetsConnectionForAdmin(
   };
 }
 
+export async function getGoogleSheetsConnectionForAdmin(
+  _adminUserId: string,
+): Promise<GoogleSheetsConnection | null> {
+  return getSharedGoogleSheetsConnection();
+}
+
 export async function getGoogleSheetsConnectionRecordForAdmin(
-  adminUserId: string,
+  _adminUserId: string,
 ) {
-  return getGoogleSheetsConnectionDocument(adminUserId);
+  return getSharedGoogleSheetsConnectionRecord();
 }
 
 export async function upsertGoogleSheetsConnection(params: {
+  connectionDocumentId?: string;
   adminUserId: string;
   email: string | null;
   refreshToken: string;
   spreadsheetId: string;
   spreadsheetUrl: string | null;
 }) {
-  const normalizedAdminUserId = params.adminUserId.trim();
-  if (!normalizedAdminUserId) {
-    throw new Error("Unable to save Google Sheets settings without an admin user.");
+  const documentId = trim(params.connectionDocumentId) || SHARED_GOOGLE_SHEETS_CONNECTION_DOCUMENT_ID;
+  const normalizedAdminUserId = params.adminUserId.trim() || documentId;
+  if (!documentId) {
+    throw new Error("Unable to save Google Sheets settings without a connection document.");
   }
 
   const databaseId = process.env.APPWRITE_DB_ID?.trim() || "mazex_data";
   const collectionId = getGoogleSheetsConnectionCollectionId();
-  const documentId = getGoogleSheetsConnectionDocumentId(normalizedAdminUserId);
+  const normalizedDocumentId = getGoogleSheetsConnectionDocumentId(documentId);
   const data = {
     adminUserId: normalizedAdminUserId,
     email: params.email?.trim() || null,
@@ -205,7 +294,7 @@ export async function upsertGoogleSheetsConnection(params: {
     return await databases.updateDocument<GoogleSheetsConnectionDoc>(
       databaseId,
       collectionId,
-      documentId,
+      normalizedDocumentId,
       data,
     );
   } catch (error) {
@@ -217,7 +306,7 @@ export async function upsertGoogleSheetsConnection(params: {
   return databases.createDocument<GoogleSheetsConnectionDoc>(
     databaseId,
     collectionId,
-    documentId,
+    normalizedDocumentId,
     data,
   );
 }
@@ -275,7 +364,7 @@ export function buildGoogleSheetsOAuthUrl(params: {
   url.searchParams.set("scope", GOOGLE_OAUTH_SCOPES.join(" "));
   url.searchParams.set("access_type", "offline");
   url.searchParams.set("include_granted_scopes", "true");
-  url.searchParams.set("prompt", "consent");
+  url.searchParams.set("prompt", "select_account consent");
   url.searchParams.set("state", params.state);
 
   return url.toString();
@@ -333,6 +422,30 @@ async function requestGoogleToken(params: URLSearchParams) {
   }
 
   return payload;
+}
+
+async function googleSheetsRequest<T>(
+  accessToken: string,
+  path: string,
+  init: RequestInit = {},
+): Promise<T> {
+  const headers = new Headers(init.headers);
+  headers.set("Authorization", `Bearer ${accessToken}`);
+
+  const response = await fetch(`${GOOGLE_SHEETS_API_BASE_URL}${path}`, {
+    ...init,
+    headers,
+    cache: "no-store",
+  });
+  const payload = (await readGoogleResponse(response)) as T | null;
+
+  if (!response.ok) {
+    throw new Error(
+      extractGoogleErrorMessage(payload, "Google Sheets request failed."),
+    );
+  }
+
+  return (payload ?? {}) as T;
 }
 
 export async function exchangeGoogleOAuthCode(params: {
@@ -418,7 +531,269 @@ async function fetchGoogleSpreadsheet(
   return payload;
 }
 
-async function createGoogleSpreadsheet(accessToken: string) {
+async function fetchGoogleSpreadsheetDetails(
+  accessToken: string,
+  spreadsheetId: string,
+): Promise<GoogleSpreadsheetDetailsResponse | null> {
+  const response = await fetch(
+    `${GOOGLE_SHEETS_API_BASE_URL}/spreadsheets/${encodeURIComponent(
+      spreadsheetId,
+    )}?fields=spreadsheetId,spreadsheetUrl,properties.title,sheets.properties(sheetId,title,hidden,index,gridProperties.frozenRowCount)`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      cache: "no-store",
+    },
+  );
+
+  if (response.status === 403 || response.status === 404) {
+    return null;
+  }
+
+  const payload =
+    (await readGoogleResponse(response)) as GoogleSpreadsheetDetailsResponse | null;
+  if (!response.ok) {
+    throw new Error(
+      extractGoogleErrorMessage(payload, "Unable to load the Google spreadsheet."),
+    );
+  }
+
+  return payload;
+}
+
+function listGoogleSpreadsheetSheets(
+  spreadsheet: GoogleSpreadsheetDetailsResponse | null | undefined,
+) {
+  return Array.isArray(spreadsheet?.sheets)
+    ? spreadsheet.sheets
+        .map((sheet) => sheet?.properties ?? null)
+        .filter((sheet): sheet is GoogleSheetProperties => Boolean(sheet?.title))
+        .sort((left, right) => (left.index ?? 0) - (right.index ?? 0))
+    : [];
+}
+
+function getFrozenRowCount(sheet: GoogleSheetProperties) {
+  const frozenRowCount = sheet.gridProperties?.frozenRowCount;
+  return typeof frozenRowCount === "number" && frozenRowCount > 0
+    ? Math.floor(frozenRowCount)
+    : 0;
+}
+
+function escapeGoogleSheetTitleForRange(title: string) {
+  return `'${title.replace(/'/gu, "''")}'`;
+}
+
+function buildGoogleSheetRange(sheetTitle: string, range = "A1") {
+  return `${escapeGoogleSheetTitleForRange(sheetTitle)}!${range}`;
+}
+
+function columnIndexToLetter(index: number) {
+  if (!Number.isInteger(index) || index < 0) {
+    throw new Error("Column index must be a non-negative integer.");
+  }
+
+  let value = index;
+  let output = "";
+
+  while (value >= 0) {
+    output = String.fromCharCode((value % 26) + 65) + output;
+    value = Math.floor(value / 26) - 1;
+  }
+
+  return output;
+}
+
+function buildGoogleSheetRangeForValues(
+  sheetTitle: string,
+  values: unknown[][],
+) {
+  const rowCount = values.length;
+  const columnCount = values.reduce((max, row) => {
+    return Math.max(max, Array.isArray(row) ? row.length : 0);
+  }, 0);
+
+  if (rowCount === 0 || columnCount === 0) {
+    return buildGoogleSheetRange(sheetTitle, "A1");
+  }
+
+  return buildGoogleSheetRange(
+    sheetTitle,
+    `A1:${columnIndexToLetter(columnCount - 1)}${rowCount}`,
+  );
+}
+
+async function fetchGoogleSheetValues(
+  accessToken: string,
+  spreadsheetId: string,
+  sheetTitle: string,
+) {
+  const payload = await googleSheetsRequest<GoogleSheetValuesResponse>(
+    accessToken,
+    `/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(
+      escapeGoogleSheetTitleForRange(sheetTitle),
+    )}`,
+  );
+
+  return Array.isArray(payload.values)
+    ? payload.values.map((row) => (Array.isArray(row) ? row : []))
+    : [];
+}
+
+async function batchUpdateGoogleSpreadsheet(
+  accessToken: string,
+  spreadsheetId: string,
+  requests: unknown[],
+) {
+  if (requests.length === 0) {
+    return null;
+  }
+
+  return googleSheetsRequest<GoogleSheetsBatchUpdateResponse>(
+    accessToken,
+    `/spreadsheets/${encodeURIComponent(spreadsheetId)}:batchUpdate`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ requests }),
+    },
+  );
+}
+
+async function updateGoogleSheetValues(
+  accessToken: string,
+  spreadsheetId: string,
+  range: string,
+  values: unknown[][],
+) {
+  if (values.length === 0) {
+    return null;
+  }
+
+  return googleSheetsRequest(
+    accessToken,
+    `/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(
+      range,
+    )}?valueInputOption=RAW`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        majorDimension: "ROWS",
+        values,
+      }),
+    },
+  );
+}
+
+async function cloneGoogleSpreadsheetViaSheetsApi(params: {
+  sourceAccessToken: string;
+  sourceSpreadsheet: GoogleSpreadsheetDetailsResponse;
+  targetAccessToken: string;
+  targetSpreadsheetName: string;
+}): Promise<ResolvedGoogleSpreadsheet> {
+  const sourceSpreadsheetId = trim(params.sourceSpreadsheet.spreadsheetId);
+  if (!sourceSpreadsheetId) {
+    throw new Error("Unable to read the source spreadsheet for transfer.");
+  }
+
+  const sourceSheets = listGoogleSpreadsheetSheets(params.sourceSpreadsheet);
+  const targetSpreadsheet = await createGoogleSpreadsheet(
+    params.targetAccessToken,
+    params.targetSpreadsheetName,
+  );
+
+  if (sourceSheets.length === 0) {
+    return {
+      ...targetSpreadsheet,
+      transferWarning: null,
+    };
+  }
+
+  const targetSpreadsheetDetails = await fetchGoogleSpreadsheetDetails(
+    params.targetAccessToken,
+    targetSpreadsheet.spreadsheetId,
+  );
+  const defaultTargetSheet = listGoogleSpreadsheetSheets(targetSpreadsheetDetails)[0];
+
+  if (typeof defaultTargetSheet?.sheetId !== "number") {
+    throw new Error("Unable to prepare the destination spreadsheet for transfer.");
+  }
+
+  const [firstSourceSheet, ...remainingSourceSheets] = sourceSheets;
+  await batchUpdateGoogleSpreadsheet(
+    params.targetAccessToken,
+    targetSpreadsheet.spreadsheetId,
+    [
+      {
+        updateSheetProperties: {
+          properties: {
+            sheetId: defaultTargetSheet.sheetId,
+            title: firstSourceSheet.title,
+            hidden: Boolean(firstSourceSheet.hidden),
+            index: 0,
+            gridProperties: {
+              frozenRowCount: getFrozenRowCount(firstSourceSheet),
+            },
+          },
+          fields: "title,hidden,index,gridProperties.frozenRowCount",
+        },
+      },
+      ...remainingSourceSheets.map((sheet, index) => ({
+        addSheet: {
+          properties: {
+            title: sheet.title,
+            hidden: Boolean(sheet.hidden),
+            index: index + 1,
+            gridProperties: {
+              frozenRowCount: getFrozenRowCount(sheet),
+            },
+          },
+        },
+      })),
+    ],
+  );
+
+  const sourceSheetValues = await Promise.all(
+    sourceSheets.map(async (sheet) => ({
+      title: sheet.title ?? "Sheet",
+      values: sheet.title
+        ? await fetchGoogleSheetValues(
+            params.sourceAccessToken,
+            sourceSpreadsheetId,
+            sheet.title,
+          )
+        : [],
+    })),
+  );
+
+  for (const sheet of sourceSheetValues) {
+    if (sheet.values.length === 0) {
+      continue;
+    }
+
+    await updateGoogleSheetValues(
+      params.targetAccessToken,
+      targetSpreadsheet.spreadsheetId,
+      buildGoogleSheetRangeForValues(sheet.title, sheet.values),
+      sheet.values,
+    );
+  }
+
+  return {
+    ...targetSpreadsheet,
+    transferWarning: null,
+  };
+}
+
+async function createGoogleSpreadsheet(
+  accessToken: string,
+  title = DEFAULT_SPREADSHEET_TITLE,
+) {
   const response = await fetch(`${GOOGLE_SHEETS_API_BASE_URL}/spreadsheets`, {
     method: "POST",
     headers: {
@@ -427,7 +802,7 @@ async function createGoogleSpreadsheet(accessToken: string) {
     },
     body: JSON.stringify({
       properties: {
-        title: DEFAULT_SPREADSHEET_TITLE,
+        title,
       },
     }),
     cache: "no-store",
@@ -454,7 +829,7 @@ async function createGoogleSpreadsheet(accessToken: string) {
 export async function ensureGoogleSpreadsheetForAdmin(
   accessToken: string,
   existingSpreadsheetId: string | null | undefined,
-) {
+): Promise<ResolvedGoogleSpreadsheet> {
   const normalizedSpreadsheetId = trim(existingSpreadsheetId);
   if (normalizedSpreadsheetId) {
     const existing = await fetchGoogleSpreadsheet(accessToken, normalizedSpreadsheetId);
@@ -462,9 +837,109 @@ export async function ensureGoogleSpreadsheetForAdmin(
       return {
         spreadsheetId: existing.spreadsheetId.trim(),
         spreadsheetUrl: trimNullable(existing.spreadsheetUrl),
+        transferWarning: null,
       };
     }
   }
 
-  return createGoogleSpreadsheet(accessToken);
+  return {
+    ...(await createGoogleSpreadsheet(accessToken)),
+    transferWarning: null,
+  };
+}
+
+export async function cloneGoogleSpreadsheetToNewAccount(params: {
+  sourceRefreshToken: string;
+  sourceSpreadsheetId: string;
+  targetAccessToken: string;
+}): Promise<ResolvedGoogleSpreadsheet> {
+  const sourceTokenResponse = await refreshGoogleSheetsAccessToken(
+    params.sourceRefreshToken,
+  );
+  const sourceAccessToken = sourceTokenResponse.access_token?.trim();
+  if (!sourceAccessToken) {
+    throw new Error("Unable to refresh the existing Google Sheets connection.");
+  }
+
+  const sourceSpreadsheet = await fetchGoogleSpreadsheetDetails(
+    sourceAccessToken,
+    params.sourceSpreadsheetId,
+  );
+  if (!sourceSpreadsheet?.spreadsheetId) {
+    throw new Error(
+      "Unable to access the existing Google Sheets spreadsheet for transfer.",
+    );
+  }
+
+  const targetSpreadsheetName =
+    trim(sourceSpreadsheet.properties?.title) || DEFAULT_SPREADSHEET_TITLE;
+
+  return cloneGoogleSpreadsheetViaSheetsApi({
+    sourceAccessToken,
+    sourceSpreadsheet,
+    targetAccessToken: params.targetAccessToken,
+    targetSpreadsheetName,
+  });
+}
+
+export async function resolveGoogleSpreadsheetForReconnectedAccount(params: {
+  targetAccessToken: string;
+  existingConnection: GoogleSheetsConnectionRecord | null;
+  transferExistingData: boolean;
+  targetEmail: string | null;
+}): Promise<ResolvedGoogleSpreadsheet> {
+  const existingSpreadsheetId = trim(params.existingConnection?.spreadsheetId);
+  const hasAccountChanged =
+    Boolean(normalizeEmail(params.targetEmail)) &&
+    Boolean(normalizeEmail(params.existingConnection?.email)) &&
+    normalizeEmail(params.targetEmail) !==
+      normalizeEmail(params.existingConnection?.email);
+
+  if (existingSpreadsheetId && !hasAccountChanged) {
+    const accessibleSpreadsheet = await fetchGoogleSpreadsheet(
+      params.targetAccessToken,
+      existingSpreadsheetId,
+    );
+    if (accessibleSpreadsheet?.spreadsheetId) {
+      return {
+        spreadsheetId: accessibleSpreadsheet.spreadsheetId.trim(),
+        spreadsheetUrl: trimNullable(accessibleSpreadsheet.spreadsheetUrl),
+        transferWarning: null,
+      };
+    }
+  }
+
+  if (
+    params.transferExistingData &&
+    existingSpreadsheetId &&
+    trim(params.existingConnection?.refreshToken)
+  ) {
+    try {
+      return await cloneGoogleSpreadsheetToNewAccount({
+        sourceRefreshToken: params.existingConnection!.refreshToken,
+        sourceSpreadsheetId: existingSpreadsheetId,
+        targetAccessToken: params.targetAccessToken,
+      });
+    } catch (error) {
+      const warningMessage =
+        error instanceof Error
+          ? `Connected the new Google account, but transferring the existing spreadsheet failed. ${error.message} A fresh spreadsheet was created instead.`
+          : "Connected the new Google account, but transferring the existing spreadsheet failed. A fresh spreadsheet was created instead.";
+      console.error(
+        "Google Sheets transfer failed during account reconnect. Falling back to a fresh spreadsheet.",
+        warningMessage,
+        error,
+      );
+
+      return {
+        ...(await createGoogleSpreadsheet(params.targetAccessToken)),
+        transferWarning: warningMessage,
+      };
+    }
+  }
+
+  return {
+    ...(await createGoogleSpreadsheet(params.targetAccessToken)),
+    transferWarning: null,
+  };
 }

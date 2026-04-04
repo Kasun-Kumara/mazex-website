@@ -50,17 +50,14 @@ function SaveEventButton() {
 }
 
 function EventToggle({
-  name,
-  defaultEnabled,
+  enabled,
+  onToggle,
 }: {
-  name: string;
-  defaultEnabled: boolean;
+  enabled: boolean;
+  onToggle: () => void;
 }) {
-  const [enabled, setEnabled] = useState(defaultEnabled);
-
   return (
     <div className="flex shrink-0 items-center gap-3">
-      <input type="hidden" name={name} value={enabled ? "on" : "off"} />
       <span className="hidden text-xs font-semibold uppercase tracking-wide text-zinc-500 sm:inline-block dark:text-zinc-400">
         Enable Event
       </span>
@@ -69,7 +66,7 @@ function EventToggle({
         role="switch"
         aria-checked={enabled}
         aria-label="Enable event"
-        onClick={() => setEnabled((value) => !value)}
+        onClick={onToggle}
         className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-2 dark:focus:ring-zinc-200 dark:focus:ring-offset-zinc-900 ${
           enabled
             ? "border-zinc-900 bg-zinc-900 dark:border-zinc-100 dark:bg-zinc-100"
@@ -190,6 +187,11 @@ function EventCard({
     submissionState.resetTargetEventKey === event.key
       ? submissionState.toastKey
       : 0;
+  const [enabled, setEnabled] = useState(event.enabled);
+
+  useEffect(() => {
+    setEnabled(event.enabled);
+  }, [event.enabled, formResetKey]);
 
   return (
     <form
@@ -198,6 +200,11 @@ function EventCard({
       className="rounded-xl border border-zinc-200 bg-white px-3 py-5 sm:p-6 md:p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
     >
       <input type="hidden" name="targetEventKey" value={event.key} />
+      <input
+        type="hidden"
+        name={`${event.key}__enabled`}
+        value={enabled ? "on" : "off"}
+      />
 
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1">
@@ -217,15 +224,15 @@ function EventCard({
             {/* Event toggle on mobile */}
             <div className="lg:hidden">
               <EventToggle
-                name={`${event.key}__enabled`}
-                defaultEnabled={event.enabled}
+                enabled={enabled}
+                onToggle={() => setEnabled((value) => !value)}
               />
             </div>
           </div>
 
           <h2 className="mt-4 text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
             {event.kind === "workshop"
-              ? `${event.title} - ${formatStoredDateForInput(event.defaultDate)}`
+              ? `${event.title} - ${formatStoredDateForInput(event.eventDate ?? event.defaultDate)}`
               : event.title}
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
@@ -259,13 +266,17 @@ function EventCard({
         {/* Event toggle on desktop */}
         <div className="hidden lg:block">
           <EventToggle
-            name={`${event.key}__enabled`}
-            defaultEnabled={event.enabled}
+            enabled={enabled}
+            onToggle={() => setEnabled((value) => !value)}
           />
         </div>
       </div>
 
-      <div className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+      <div
+        className={`mt-6 grid gap-5 md:grid-cols-2 ${
+          event.kind === "competition" ? "lg:grid-cols-3" : "lg:grid-cols-4"
+        }`}
+      >
         <FieldShell
           label={event.kind === "competition" ? "Competition form" : "Workshop form"}
           description={`Only ${event.requiredFormKind} forms are available here. Draft forms cannot be linked.`}
@@ -318,6 +329,21 @@ function EventCard({
           </>
         ) : (
           <>
+            <FieldShell
+              label="Workshop date"
+              description="Shown on the home timeline. Leave blank to use the default date."
+            >
+              <FormattedPickerInput
+                key={`${event.key}:eventDate:${event.eventDate ?? event.defaultDate}`}
+                name={`${event.key}__eventDate`}
+                mode="date"
+                defaultValue={event.eventDate ?? event.defaultDate}
+                placeholder="yyyy/mm/dd"
+                inputMode="numeric"
+                ariaLabel={`Select the workshop date for ${event.title}`}
+                className="block h-11 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
+              />
+            </FieldShell>
             <FieldShell label="Open date">
               <FormattedPickerInput
                 key={`${event.key}:open:${event.openDate ?? ""}`}
@@ -373,6 +399,7 @@ function getEventRenderKey(event: AdminSiteEventItem) {
     event.key,
     event.enabled ? "enabled" : "disabled",
     event.formId ?? "none",
+    event.eventDate ?? "default",
     event.openDate ?? "none",
     event.closeDate ?? "none",
     event.linkedForm?.slug ?? "no-slug",
@@ -443,7 +470,7 @@ export default function AdminEventsForm({
               Manage public events and registration links
             </h1>
             <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-              Competition dates and workshop registration windows are managed here, while workshop timeline dates on the home page stay hard-coded.
+              Competition dates, workshop registration windows, and workshop timeline dates are managed here.
               Form Builder still owns the form schema, fields, and content. Each card saves independently.
             </p>
           </div>
